@@ -1,0 +1,61 @@
+// Gravity Assist - Prisma Schema
+//
+// Development (SQLite):
+//   DATABASE_URL="file:./dev.db"  (in prisma/.env or root .env)
+//   provider = "sqlite"
+//
+// Production (PostgreSQL):
+//   Change provider below to "postgresql"
+//   Set DATABASE_URL to your postgres connection string
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String             @id @default(cuid())
+  uid          String             @unique
+  accessToken  String
+  createdAt    String
+  lastLoggedIn String
+  origin       String             @default("L")
+  bpLastSaved  String?
+  savedMails   SavedMail[]
+  blueprintAccounts BlueprintAccount[]
+}
+
+model SavedMail {
+  id        String @id
+  name      String
+  /// JSON string of TruncatedOp[]
+  ops       String
+  lastSaved String
+  createdAt String
+  userId    String
+  user      User   @relation(fields: [userId], references: [uid], onDelete: Cascade)
+}
+
+model BlueprintAccount {
+  id           String @id @default(cuid())
+  accountIndex Int
+  accountName  String
+  /// JSON string of Record<number, (string|number)[]>[]
+  data         String
+  userId       String
+  user         User   @relation(fields: [userId], references: [uid], onDelete: Cascade)
+
+  @@unique([userId, accountIndex])
+}
+
+model Alert {
+  id          String  @id
+  show        Boolean @default(true)
+  tag         String
+  description String
+  date        String
+}

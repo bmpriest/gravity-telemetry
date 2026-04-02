@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-color: #ffffff;
+}
+
+.dark {
+  --bg-color: #0a0a0a;
+}
+
+* {
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
+  @apply text-center text-black dark:text-white;
+}
+
+body {
+  background-color: var(--bg-color);
+  @apply m-0 w-full overflow-x-hidden p-0 transition duration-500;
+}
+
+button {
+  touch-action: manipulation;
+  @apply text-center text-black dark:text-white;
+}
+
+a {
+  @apply text-center text-black dark:text-white;
+}
+
+.editor-bg {
+  background: radial-gradient(#1e232a, #080a0c);
+}
+
+.fo-btn.fo-btn-circle.fo-btn-text {
+  @apply dark:hover:bg-neutral-700;
+}
+
+.fo-skeleton {
+  @apply dark:bg-neutral-800;
+}
+
+/* Subsystem card attribute tooltips: show inline on touch devices */
+.tooltip-nohover {
+  @apply hidden;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .tooltip-container {
+    @apply flex-col;
+  }
+  .tooltip-container .du-tooltip {
+    @apply hidden;
+  }
+  .tooltip-nohover {
+    @apply block;
+  }
+}
