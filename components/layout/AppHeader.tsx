@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useUserStore } from "@/stores/userStore";
+import UserMenu from "./UserMenu";
 
 interface Props {
   onToggleSidebar: () => void;
@@ -36,6 +37,7 @@ export default function AppHeader({ onToggleSidebar }: Props) {
           <img className="du-swap-off size-8 select-none" src="/ui/sun.svg" aria-hidden="true" />
           <img className="du-swap-on size-8 select-none invert" src="/ui/moon.svg" aria-hidden="true" />
         </label>
+        <UserMenu />
       </div>
     </nav>
   );

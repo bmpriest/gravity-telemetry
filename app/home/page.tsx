@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import Carousel from "@/components/Home/Carousel";
 import ChangelogItem from "@/components/Home/ChangelogItem";
 import ContributorsItem from "@/components/Home/ContributorsItem";
-import HomeLink from "@/components/Home/HomeLink";
 import Contact from "@/components/Home/Contact";
 import { changelog } from "@/utils/changelog";
 import { credits } from "@/utils/credits";
@@ -72,18 +71,6 @@ export default function HomePage() {
               </div>
             </div>
           </button>
-        </div>
-      </div>
-
-      <div className="mt-16 flex w-[80vw] flex-col items-center justify-center gap-2 md:w-[25rem] lg:w-[40rem]">
-        <h2 id="link-a-device" className="text-3xl font-bold">
-          <Link href="/home#link-a-device" className="transition duration-500">Link A Device</Link>
-        </h2>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
-          <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/link.svg" aria-hidden="true" /></span>
-        </div>
-        <div className="flex w-[80vw] flex-col gap-2 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
-          <HomeLink />
         </div>
       </div>
 

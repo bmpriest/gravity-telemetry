@@ -1,24 +1,122 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import BlueprintsToolbar from "@/components/Blueprints/BlueprintsToolbar";
 import BlueprintsCategory from "@/components/Blueprints/BlueprintsCategory";
 import BlueprintsModules from "@/components/Blueprints/BlueprintsModules";
-import { useUserStore } from "@/stores/userStore";
-import { getObjectKey } from "@/utils/functions";
+import { useUserStore, type AccountSummary } from "@/stores/userStore";
 import { formatDate } from "@/utils/functions";
+import { readGuestAccount, writeGuestAccount, listGuestAccounts } from "@/utils/guestBlueprints";
 import type { AllShip } from "@/utils/ships";
 import type { BlueprintAllShip, BlueprintSuperCapitalShip, ShipFilter, ShipSorter } from "@/utils/blueprints";
 
 const shipTypes = ["Fighter", "Corvette", "Frigate", "Destroyer", "Cruiser", "Battlecruiser", "Auxiliary Ship", "Carrier", "Battleship"] as const;
+
+// Display name -> ShipType enum value
+const SHIP_TYPE_TO_ENUM: Record<string, string> = {
+  "Fighter": "Fighter",
+  "Corvette": "Corvette",
+  "Frigate": "Frigate",
+  "Destroyer": "Destroyer",
+  "Cruiser": "Cruiser",
+  "Battlecruiser": "Battlecruiser",
+  "Auxiliary Ship": "AuxiliaryShip",
+  "Carrier": "Carrier",
+  "Battleship": "Battleship",
+};
+
+function tpArrayToRecord(tp: number[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let i = 0; i < shipTypes.length; i++) {
+    if (tp[i]) out[SHIP_TYPE_TO_ENUM[shipTypes[i]]] = tp[i];
+  }
+  return out;
+}
+
+function tpRecordToArray(record: Record<string, number> | undefined): number[] {
+  const out = new Array<number>(shipTypes.length).fill(0);
+  if (!record) return out;
+  for (let i = 0; i < shipTypes.length; i++) {
+    const enumKey = SHIP_TYPE_TO_ENUM[shipTypes[i]];
+    out[i] = record[enumKey] ?? 0;
+  }
+  return out;
+}
+
+interface ServerShipUnlock {
+  shipId: number;
+  techPoints: number;
+  moduleSystems: string[];
+}
+
+function buildBlueprints(ships: AllShip[], serverShips: ServerShipUnlock[]): BlueprintAllShip[] {
+  const byId = new Map<number, ServerShipUnlock>();
+  for (const s of serverShips) byId.set(s.shipId, s);
+
+  return ships.map((ship): BlueprintAllShip => {
+    const unlock = byId.get(ship.id);
+    if ("modules" in ship) {
+      return {
+        ...ship,
+        unlocked: Boolean(unlock),
+        techPoints: unlock?.techPoints ?? 0,
+        mirrorTechPoints: ship.hasVariants,
+        modules: ship.modules.map((module) => ({
+          ...module,
+          unlocked: Boolean(unlock?.moduleSystems.includes(module.system)),
+        })),
+      } as BlueprintSuperCapitalShip;
+    }
+    return {
+      ...ship,
+      unlocked: Boolean(unlock),
+      techPoints: unlock?.techPoints ?? 0,
+      mirrorTechPoints: ship.hasVariants,
+    } as BlueprintAllShip;
+  });
+}
+
+function buildEmptyBlueprints(ships: AllShip[]): BlueprintAllShip[] {
+  return ships.map((ship): BlueprintAllShip => {
+    if ("modules" in ship) {
+      return {
+        ...ship,
+        unlocked: false,
+        techPoints: 0,
+        mirrorTechPoints: ship.hasVariants,
+        modules: ship.modules.map((module) => ({
+          ...module,
+          unlocked: Boolean(module.default),
+        })),
+      } as BlueprintSuperCapitalShip;
+    }
+    return {
+      ...ship,
+      unlocked: false,
+      techPoints: 0,
+      mirrorTechPoints: ship.hasVariants,
+    } as BlueprintAllShip;
+  });
+}
+
+function blueprintsToServerShips(data: BlueprintAllShip[]): ServerShipUnlock[] {
+  const out: ServerShipUnlock[] = [];
+  for (const ship of data) {
+    if (!ship.unlocked) continue;
+    const moduleSystems = "modules" in ship
+      ? ship.modules.filter((m) => m.unlocked).map((m) => m.system)
+      : [];
+    out.push({ shipId: ship.id, techPoints: ship.techPoints, moduleSystems });
+  }
+  return out;
+}
 
 export default function BlueprintTrackerPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
   const shipData = useUserStore((s) => s.shipData);
   const blueprintsAutosave = useUserStore((s) => s.blueprintsAutosave);
   const setBlueprintsAutosave = useUserStore((s) => s.setBlueprintsAutosave);
@@ -27,8 +125,10 @@ export default function BlueprintTrackerPage() {
   const createNewAccount = useUserStore((s) => s.createNewAccount);
   const setCreateNewAccount = useUserStore((s) => s.setCreateNewAccount);
   const setIsUnsavedAccount = useUserStore((s) => s.setIsUnsavedAccount);
+  const blueprintAccounts = useUserStore((s) => s.blueprintAccounts);
 
-  const uParam = searchParams.get("u");
+  const [guestAccounts, setGuestAccounts] = useState<AccountSummary[]>();
+
   const aParam = searchParams.get("a");
   const accountIndex = aParam !== null ? Math.min(Number(aParam), 9) : 0;
 
@@ -47,6 +147,9 @@ export default function BlueprintTrackerPage() {
 
   const loadedRef = useRef(false);
   const prevAParam = useRef(aParam);
+  // Tracks which account index the current `data` was loaded for; prevents autosave from
+  // writing stale data into a freshly-switched account slot.
+  const dataAccountRef = useRef<number | undefined>(undefined);
 
   // Restore layout prefs from localStorage
   useEffect(() => {
@@ -67,10 +170,30 @@ export default function BlueprintTrackerPage() {
     localStorage.setItem("modules", String(exposeModules));
   }, [exposeModules]);
 
-  // Sync autosave when data changes (owner only)
+  // Sync in-memory autosave when data changes (any user, including guest)
   useEffect(() => {
-    if (data && user?.uid === uParam) setBlueprintsAutosave(data);
+    if (data) setBlueprintsAutosave(data);
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist guest data to localStorage on every change.
+  useEffect(() => {
+    if (!data || user !== null) return;
+    // Skip if data was loaded for a different account index (account just switched, fresh load pending).
+    if (dataAccountRef.current !== accountIndex) return;
+    const name = guestAccounts?.find((a) => a.accountIndex === accountIndex)?.accountName ?? `Account ${accountIndex}`;
+    const now = new Date().toISOString();
+    writeGuestAccount(accountIndex, {
+      accountName: name,
+      ships: blueprintsToServerShips(data),
+      unassignedTp: tpArrayToRecord(unassignedTp),
+      lastSaved: now,
+    });
+    setLastSaved(now);
+    setHasUnsavedChanges(false);
+    setIsUnsavedAccount(false);
+    // Refresh the synthetic accounts list
+    setGuestAccounts(listGuestAccounts());
+  }, [data, unassignedTp, user, accountIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Recompute displayedData when data/filters/sorter/search change
   useEffect(() => {
@@ -92,115 +215,73 @@ export default function BlueprintTrackerPage() {
     return () => clearTimeout(t);
   }, [closeToolbar]);
 
-  // Ensure route has u and a params
+  // Ensure route has a param
   useEffect(() => {
     if (!shipData) return;
-    if (!uParam && user) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("u", user.uid);
-      if (!aParam) params.set("a", "0");
-      router.replace(`/modules/blueprint-tracker?${params.toString()}`);
-      return;
-    }
     if (!aParam) {
       const params = new URLSearchParams(searchParams.toString());
       params.set("a", "0");
       router.replace(`/modules/blueprint-tracker?${params.toString()}`);
     }
-  }, [shipData, user, uParam, aParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shipData, aParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isOwner = shipData
-    ? !uParam
-      ? user
-        ? true
-        : undefined
-      : uParam === user?.uid
-    : undefined;
+  // Owner can edit their own data — true for both logged-in users and guests once state resolves.
+  const isOwner = shipData && user !== undefined ? true : undefined;
+  const isGuest = user === null;
+
+  // Hydrate guest accounts from localStorage on first render after user resolves to null.
+  useEffect(() => {
+    if (isGuest && !guestAccounts) setGuestAccounts(listGuestAccounts());
+  }, [isGuest, guestAccounts]);
 
   async function getAccount(ships: AllShip[]) {
-    const uid = uParam ?? user?.uid;
-    if (!uid) return undefined;
+    if (isGuest) {
+      const guest = readGuestAccount(accountIndex);
+      if (!guest) return undefined;
+      setLastSaved(guest.lastSaved);
+      setUnassignedTp(tpRecordToArray(guest.unassignedTp));
+      return buildBlueprints(ships, guest.ships ?? []);
+    }
+    if (!user) return undefined;
 
     const res = await fetch("/api/blueprints/get", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid, accountIndex }),
+      body: JSON.stringify({ accountIndex }),
     });
-    const { success, error, content, lastSaved: bpLastSaved, unassignedTp: savedTp } = await res.json();
+    const { success, error, account } = await res.json();
 
     if (!success && error) {
       console.error(error);
-      if (aParam !== "0") {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("a", "0");
-        router.replace(`/modules/blueprint-tracker?${params.toString()}`);
-        setHasUnsavedChanges(false);
-      }
       return undefined;
     }
 
-    if (success && content && bpLastSaved) {
-      setLastSaved(bpLastSaved);
-      setUnassignedTp(savedTp ?? [0, 0, 0, 0, 0, 0, 0, 0, 0]);
-      return ships.map((ship): BlueprintAllShip => {
-        const ownedBlueprint = content.find(([id, variant]: [number, string]) => ship.id === id && ship.variant === variant);
-        if ("modules" in ship) {
-          return {
-            ...ship,
-            unlocked: Boolean(ownedBlueprint),
-            techPoints: ownedBlueprint ? (ownedBlueprint[2] as number) : 0,
-            mirrorTechPoints: ship.hasVariants,
-            modules: ship.modules.map((module) => ({
-              ...module,
-              unlocked: Boolean(ownedBlueprint?.slice(3).includes(module.system)),
-            })),
-          } as BlueprintSuperCapitalShip;
-        }
-        return {
-          ...ship,
-          unlocked: Boolean(ownedBlueprint),
-          techPoints: ownedBlueprint ? (ownedBlueprint[2] as number) : 0,
-          mirrorTechPoints: ship.hasVariants,
-        } as BlueprintAllShip;
-      });
+    if (success && account) {
+      setLastSaved(account.lastSaved);
+      setUnassignedTp(tpRecordToArray(account.unassignedTp));
+      return buildBlueprints(ships, account.ships ?? []);
     }
     return undefined;
   }
 
   function createAccountData(ships: AllShip[]): BlueprintAllShip[] {
-    if (user && !user.blueprints.some((account) => getObjectKey(account) === "Unnamed" && Object.values(account)[0].length === 0)) {
-      setUser({ ...user, blueprints: [...user.blueprints, { Unnamed: [] }] });
-    }
     setCreateNewAccount(false);
     setIsUnsavedAccount(true);
-    return ships.map((ship): BlueprintAllShip => {
-      if ("modules" in ship) {
-        return {
-          ...ship,
-          unlocked: false,
-          techPoints: 0,
-          mirrorTechPoints: ship.hasVariants,
-          modules: ship.modules.map((module) => ({
-            ...module,
-            unlocked: Boolean(module.default),
-          })),
-        } as BlueprintSuperCapitalShip;
-      }
-      return {
-        ...ship,
-        unlocked: false,
-        techPoints: 0,
-        mirrorTechPoints: ship.hasVariants,
-      } as BlueprintAllShip;
-    });
+    setUnassignedTp([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    setLastSaved("");
+    return buildEmptyBlueprints(ships);
   }
 
   async function loadBlueprints(ships: AllShip[]) {
+    const targetIndex = accountIndex;
     if (createNewAccount) {
+      dataAccountRef.current = targetIndex;
       setData(createAccountData(ships));
       return;
     }
     const account = await getAccount(ships);
+    dataAccountRef.current = targetIndex;
     if (account) {
       setData(account);
       return;
@@ -212,7 +293,9 @@ export default function BlueprintTrackerPage() {
   useEffect(() => {
     if (isOwner === undefined || !shipData || loadedRef.current) return;
     loadedRef.current = true;
-    if (isOwner && blueprintsAutosave) {
+    // Logged-in users get the in-memory autosave for instant navigation; guests load from localStorage.
+    if (user && blueprintsAutosave) {
+      dataAccountRef.current = accountIndex;
       setData(blueprintsAutosave);
     } else {
       void loadBlueprints(shipData);
@@ -221,12 +304,10 @@ export default function BlueprintTrackerPage() {
 
   // Reload on account index change
   useEffect(() => {
-    if (!shipData || !user || !uParam || !aParam) return;
+    if (!shipData || user === undefined || !aParam) return;
     if (prevAParam.current === aParam) return;
     prevAParam.current = aParam;
-
-    if (user.uid === uParam && loadedRef.current) {
-      // Switching accounts for the owner
+    if (loadedRef.current) {
       void loadBlueprints(shipData);
     }
   }, [aParam]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -246,6 +327,11 @@ export default function BlueprintTrackerPage() {
 
   const reversedShipTypes = [...shipTypes].reverse();
 
+  const buildSavePayload = () => ({
+    ships: data ? blueprintsToServerShips(data) : [],
+    unassignedTp: tpArrayToRecord(unassignedTp),
+  });
+
   return (
     <div
       className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-8"
@@ -262,10 +348,10 @@ export default function BlueprintTrackerPage() {
 
       <BlueprintsToolbar
         closeToolbar={closeToolbar}
-        data={data}
+        accounts={isGuest ? guestAccounts : blueprintAccounts}
         isOwner={isOwner}
         accountIndex={accountIndex}
-        unassignedTp={unassignedTp}
+        buildSavePayload={buildSavePayload}
         onList={() => setIsListLayout((v) => !v)}
         onVariants={() => setShowVariants((v) => !v)}
         onExposeModules={() => setExposeModules((v) => !v)}

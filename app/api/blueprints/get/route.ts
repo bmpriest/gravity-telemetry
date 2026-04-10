@@ -1,55 +1,62 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { getObjectKey, getObjectValue } from "@/utils/functions";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
 
-interface Body {
-  uid: string;
-  accountIndex: number;
-}
+const getSchema = z.object({
+  accountIndex: z.number().int().min(0).max(9),
+});
 
-export async function POST(req: NextRequest) {
-  let blueprints: (string | number)[][] = [];
-  let lastSaved: string | null = null;
-  let accountName: string | null = null;
-  let unassignedTp: number[] | null = null;
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-  try {
-    const body = (await req.json()) as Body;
-
-    const [user, account] = await Promise.all([
-      prisma.user.findUnique({ where: { uid: body.uid }, select: { bpLastSaved: true } }),
-      prisma.blueprintAccount.findUnique({
-        where: { userId_accountIndex: { userId: body.uid, accountIndex: body.accountIndex } },
-      }),
-    ]);
-
-    if (!user) throw new Error("User not found.");
-    if (!user.bpLastSaved || !account) {
-      return NextResponse.json({ success: false, error: "No blueprints found.", content: null, lastSaved: null, accountName: null, unassignedTp: null });
-    }
-
-    const ships = JSON.parse(account.data) as Record<number, (string | number)[]>[];
-    if (ships.length === 0) throw new Error("No blueprints found.");
-
-    if (Number(getObjectKey(ships[0])) === 999) {
-      const [unassignedTpEntry] = ships.splice(0, 1);
-      unassignedTp = getObjectValue(unassignedTpEntry) as number[];
-    }
-
-    accountName = account.accountName;
-    blueprints = ships.map((ship) => [Number(getObjectKey(ship)), getObjectValue(ship)].flat());
-    lastSaved = user.bpLastSaved;
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      content: null,
-      lastSaved: null,
-      accountName: null,
-      unassignedTp: null,
-    });
+  const body: unknown = await req.json();
+  const parsed = getSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "Invalid input");
   }
 
-  return NextResponse.json({ success: true, error: null, content: blueprints, lastSaved, accountName, unassignedTp });
-}
+  const account = await prisma.blueprintAccount.findUnique({
+    where: {
+      userId_accountIndex: {
+        userId: sessionUser.id,
+        accountIndex: parsed.data.accountIndex,
+      },
+    },
+    include: {
+      shipUnlocks: {
+        include: {
+          moduleUnlocks: { include: { module: { select: { system: true } } } },
+        },
+      },
+      unassignedTp: true,
+    },
+  });
+
+  if (!account) {
+    return NextResponse.json({ success: true, account: null });
+  }
+
+  const ships = account.shipUnlocks.map((u) => ({
+    shipId: u.shipId,
+    techPoints: u.techPoints,
+    moduleSystems: u.moduleUnlocks.map((m) => m.module.system),
+  }));
+
+  const unassignedTp: Record<string, number> = {};
+  for (const u of account.unassignedTp) {
+    unassignedTp[u.shipType] = u.techPoints;
+  }
+
+  return NextResponse.json({
+    success: true,
+    account: {
+      accountIndex: account.accountIndex,
+      accountName: account.accountName,
+      ships,
+      unassignedTp,
+      lastSaved: account.bpLastSaved,
+    },
+  });
+});

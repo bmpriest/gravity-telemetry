@@ -1,32 +1,25 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
 import { untruncateOps } from "@/utils/functions";
 import type { TruncatedOp } from "@/utils/types";
 
-interface Body {
-  uid: string;
-  mailId: string;
-}
+const getSchema = z.object({ mailId: z.string().min(1) });
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as Body;
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-    const mail = await prisma.savedMail.findFirst({
-      where: { id: body.mailId, userId: body.uid },
-    });
+  const body: unknown = await req.json();
+  const parsed = getSchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "Invalid input");
 
-    if (!mail) throw new Error("Mail not found.");
+  const mail = await prisma.savedMail.findFirst({
+    where: { id: parsed.data.mailId, userId: sessionUser.id },
+  });
+  if (!mail) return jsonError(404, "Mail not found");
 
-    const ops = untruncateOps(JSON.parse(mail.ops) as TruncatedOp[]);
-
-    return NextResponse.json({ success: true, error: null, content: { ...mail, ops } });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      content: null,
-    });
-  }
-}
+  const ops = untruncateOps(JSON.parse(mail.ops) as TruncatedOp[]);
+  return NextResponse.json({ success: true, content: { ...mail, ops } });
+});

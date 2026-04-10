@@ -1,10 +1,6 @@
 export type ManufacturerOption = "Jupiter Industry" | "NOMA Shipping" | "Antonios" | "Dawn Accord" | "Empty";
-export type DirectionOption = "Outstanding Firepower" | "Sustained Combat" | "Strategy & Support" | "Fighter & Corvette" | "Empty";
-export type ScopeOption = "Direct-Fire Weapon" | "Projectile Weapon" | "Empty";
 
 export const manufacturers: ManufacturerOption[] = ["Jupiter Industry", "Dawn Accord", "Antonios", "NOMA Shipping", "Empty"];
-export const directions: DirectionOption[] = ["Outstanding Firepower", "Sustained Combat", "Strategy & Support", "Fighter & Corvette", "Empty"];
-export const scopes: ScopeOption[] = ["Projectile Weapon", "Direct-Fire Weapon", "Empty"];
 
 export interface Ship {
   id: number;
@@ -36,11 +32,6 @@ export interface Ship {
   /** Whether or not the ship has other variants. */
   hasVariants: boolean;
   manufacturer: ManufacturerOption;
-  direction: DirectionOption[];
-  scope: ScopeOption;
-
-  /** Weight of the ship's draw probability */
-  weight: number;
   row: "Front" | "Middle" | "Back";
   commandPoints: number;
   serviceLimit: number;
@@ -325,31 +316,6 @@ export type AllShip = Fighter | Corvette | CapitalShip | MediumFighterCapitalShi
 export function findShip(ships: AllShip[] | undefined, ship: AllShip | undefined, name?: string, variant?: string) {
   if (ship) return ships?.find((s) => s.name.toLowerCase() === ship.name.toLowerCase() && s.variant.toLowerCase() === ship.variant.toLowerCase());
   return ships?.find((s) => s.name.toLowerCase() === name?.toLowerCase() && s.variant.toLowerCase() === variant?.toLowerCase());
-}
-
-export function findBestDirection(data: AllShip[], ship: AllShip) {
-  if (ship.direction.length === 1) {
-    return ship.direction[0];
-  }
-
-  let bestDirection: DirectionOption = "Empty";
-  const allChances: number[] = [];
-
-  for (const direction of ship.direction) {
-    const simulatedPath = data.filter((shipObj) => {
-      const manufacturerCheck = ship.manufacturer === "Empty" || shipObj.manufacturer === ship.manufacturer;
-      const directionCheck = direction === "Empty" || shipObj.direction.includes(direction);
-      const scopeCheck = ship.scope === "Empty" || shipObj.scope === ship.scope;
-
-      return manufacturerCheck && directionCheck && scopeCheck;
-    });
-
-    const chance = (ship.weight / simulatedPath.reduce((acc, item) => acc + item.weight, 0)) * 100;
-    allChances.push(chance);
-  }
-
-  bestDirection = ship.direction[allChances.indexOf(Math.max(...allChances))];
-  return bestDirection;
 }
 
 export function shipNameToImage(name: string) {

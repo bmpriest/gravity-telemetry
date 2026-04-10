@@ -52,7 +52,7 @@ export default function FleetBuilderPage() {
 
   useEffect(() => {
     loadFromStorage();
-    if (!shipData) init(false);
+    if (!shipData) init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function showNotice(msg: string) {

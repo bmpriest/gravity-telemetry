@@ -19,7 +19,7 @@ const carouselShowcases: Showcase[] = [
 
 export default function Carousel() {
   const [index, setIndex] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   function start() {
     intervalRef.current = setInterval(() => setIndex((i) => (i + 1) % carouselShowcases.length), 7000);

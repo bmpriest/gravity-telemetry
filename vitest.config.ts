@@ -9,5 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Integration tests boot a Postgres container; allow plenty of headroom.
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
   },
 });

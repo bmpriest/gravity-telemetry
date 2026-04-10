@@ -1,12 +1,10 @@
-import pluginVue from "eslint-plugin-vue";
-import vueParser from "vue-eslint-parser";
 import tseslint from "typescript-eslint";
 import globals from "globals";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    ignores: ["**/.nuxt", "**/node_modules", "**/.output", "**/dist"]
+    ignores: ["**/node_modules", "**/.next", "**/dist", "**/coverage"]
   },
   {
     languageOptions: {
@@ -15,14 +13,11 @@ export default [
   },
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
-  ...pluginVue.configs["flat/recommended"],
   {
     name: "main",
     languageOptions: {
-      parser: vueParser,
+      parser: tseslint.parser,
       parserOptions: {
-        parser: tseslint.parser,
-        extraFileExtensions: [".vue"],
         projectService: true,
         tsconfigRootDir: import.meta.dirname
       }
@@ -78,49 +73,7 @@ export default [
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/restrict-template-expressions": "off",
-      "@typescript-eslint/consistent-type-definitions": "off",
-
-      "vue/multi-word-component-names": "off",
-      "vue/block-lang": ["error", { script: { lang: "ts" } }],
-      "vue/block-order": ["error", { order: ["template", "script", "style"] }],
-      "vue/component-api-style": "error",
-      "vue/component-name-in-template-casing": "error",
-      "vue/custom-event-name-casing": "error",
-      "vue/define-emits-declaration": "error",
-      "vue/define-props-declaration": "error",
-      "vue/enforce-style-attribute": "error",
-      "vue/html-button-has-type": "error",
-      "vue/new-line-between-multi-line-property": "error",
-      "vue/no-static-inline-styles": "error",
-      "vue/no-template-target-blank": "error",
-      "vue/no-unused-emit-declarations": "error",
-      "vue/no-unused-properties": "error",
-      "vue/no-unused-refs": "error",
-      "vue/no-useless-mustaches": "error",
-      "vue/no-useless-v-bind": "error",
-      "vue/padding-line-between-blocks": "error",
-      "vue/prefer-use-template-ref": "error",
-      "vue/require-typed-object-prop": "error",
-      "vue/v-for-delimiter-style": "error",
-      "vue/dot-notation": "error",
-      "vue/camelcase": "error",
-      "vue/no-console": "error",
-      "vue/no-constant-condition": "error",
-      "vue/attributes-order": [
-        "error",
-        {
-          order: ["DEFINITION", "CONDITIONALS", "LIST_RENDERING", "RENDER_MODIFIERS", "GLOBAL", ["UNIQUE", "SLOT"], "TWO_WAY_BINDING", "OTHER_DIRECTIVES", "OTHER_ATTR", "EVENTS", "CONTENT"],
-          alphabetical: false
-        }
-      ],
-      "vue/html-self-closing": ["error", { html: { void: "always", normal: "never", component: "always" } }],
-      "vue/max-attributes-per-line": "off",
-      "vue/require-v-for-key": "off",
-      "vue/singleline-html-element-content-newline": "off",
-      "vue/multiline-html-element-content-newline": "off",
-      "vue/no-static-inline-styles": "off",
-      "vue/no-mutating-props": "off",
-      "vue/no-use-v-if-with-v-for": "off"
+      "@typescript-eslint/consistent-type-definitions": "off"
     }
   }
 ];

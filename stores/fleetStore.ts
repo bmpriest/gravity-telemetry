@@ -28,11 +28,21 @@ interface FleetState {
   moveShips: (instanceIds: string[], toRow: FleetRow) => void;
   loadOntoCarrier: (carrierInstanceId: string, ship: AllShip, ships: AllShip[]) => string | null;
   unloadFromCarrier: (carrierInstanceId: string, instanceId: string) => void;
-  saveFleet: () => void;
+  saveFleet: () => Promise<void>;
   loadFleet: (fleetId: string) => void;
-  deleteFleet: (fleetId: string) => void;
+  deleteFleet: (fleetId: string) => Promise<void>;
   newFleet: () => void;
   loadFromStorage: () => void;
+  syncFromServer: () => Promise<void>;
+}
+
+function persistSavedFleets(savedFleets: Fleet[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+  } catch {
+    // localStorage full / disabled
+  }
 }
 
 // Re-export for convenience
@@ -171,17 +181,43 @@ export const useFleetStore = create<FleetState>()(
       });
     },
 
-    saveFleet() {
-      set((state) => {
-        const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
-        const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
-        const savedFleets =
-          existing !== -1
-            ? state.savedFleets.map((f, i) => (i === existing ? copy : f))
-            : [...state.savedFleets, copy];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
-        return { savedFleets };
-      });
+    async saveFleet() {
+      const state = get();
+      const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
+      const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
+      const savedFleets =
+        existing !== -1
+          ? state.savedFleets.map((f, i) => (i === existing ? copy : f))
+          : [...state.savedFleets, copy];
+      persistSavedFleets(savedFleets);
+      set({ savedFleets });
+
+      // Mirror to server when logged in
+      try {
+        const res = await fetch("/api/fleets", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: copy.id,
+            name: copy.name,
+            maxCommandPoints: copy.maxCommandPoints,
+            rows: copy.rows,
+            carrierLoads: copy.carrierLoads,
+          }),
+        });
+        if (!res.ok) return; // not logged in / validation failed
+        const body = (await res.json()) as { success: boolean; fleet?: Fleet };
+        if (body.success && body.fleet) {
+          // Replace the cached entry with the canonical server response (preserves server id).
+          set((s) => ({
+            savedFleets: s.savedFleets.map((f) => (f.id === copy.id ? body.fleet! : f)),
+          }));
+          persistSavedFleets(get().savedFleets);
+        }
+      } catch {
+        // Offline / network error — local save still succeeded
+      }
     },
 
     loadFleet(fleetId) {
@@ -189,12 +225,20 @@ export const useFleetStore = create<FleetState>()(
       if (saved) set({ fleet: JSON.parse(JSON.stringify(saved)) });
     },
 
-    deleteFleet(fleetId) {
-      set((state) => {
-        const savedFleets = state.savedFleets.filter((f) => f.id !== fleetId);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
-        return { savedFleets };
-      });
+    async deleteFleet(fleetId) {
+      const savedFleets = get().savedFleets.filter((f) => f.id !== fleetId);
+      persistSavedFleets(savedFleets);
+      set({ savedFleets });
+
+      // Mirror to server when logged in
+      try {
+        await fetch(`/api/fleets/${encodeURIComponent(fleetId)}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+      } catch {
+        // Offline / network error — local delete still succeeded
+      }
     },
 
     newFleet() {
@@ -216,6 +260,21 @@ export const useFleetStore = create<FleetState>()(
         set({ fleet, savedFleets });
       } catch {
         // Invalid data in localStorage
+      }
+    },
+
+    async syncFromServer() {
+      try {
+        const res = await fetch("/api/fleets", { credentials: "include" });
+        if (!res.ok) return;
+        const body = (await res.json()) as { success: boolean; fleets?: Fleet[] };
+        if (!body.success || !body.fleets) return;
+        // Server is the source of truth for logged-in users.
+        const merged = body.fleets;
+        persistSavedFleets(merged);
+        set({ savedFleets: merged });
+      } catch {
+        // Offline / network error — keep local cache
       }
     },
   }))

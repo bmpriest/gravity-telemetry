@@ -1,61 +1,450 @@
-// Gravity Assist - Prisma Schema
+// Gravity Telemetry — Prisma Schema (PostgreSQL)
 //
-// Development (SQLite):
-//   DATABASE_URL="file:./dev.db"  (in prisma/.env or root .env)
-//   provider = "sqlite"
-//
-// Production (PostgreSQL):
-//   Change provider below to "postgresql"
-//   Set DATABASE_URL to your postgres connection string
+// Set DATABASE_URL in .env (e.g. postgresql://gravity:gravity@localhost:5432/gravity)
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// ──────────────────────────── Auth ────────────────────────────
+
 model User {
-  id           String             @id @default(cuid())
-  uid          String             @unique
-  accessToken  String
-  createdAt    String
-  lastLoggedIn String
-  origin       String             @default("L")
-  bpLastSaved  String?
-  savedMails   SavedMail[]
-  blueprintAccounts BlueprintAccount[]
+  id                  String    @id @default(cuid())
+  username            String    @unique
+  passwordHash        String
+  isAdmin             Boolean   @default(false)
+  mustChangePassword  Boolean   @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions            Session[]
+  savedMails          SavedMail[]
+  blueprintAccounts   BlueprintAccount[]
+  fleets              Fleet[]
+
+  @@index([username])
 }
 
-model SavedMail {
-  id        String @id
-  name      String
-  /// JSON string of TruncatedOp[]
-  ops       String
-  lastSaved String
-  createdAt String
-  userId    String
-  user      User   @relation(fields: [userId], references: [uid], onDelete: Cascade)
+model Session {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
 }
+
+// ──────────────────────────── Enums ────────────────────────────
+
+enum ShipType {
+  Fighter
+  Corvette
+  Frigate
+  Destroyer
+  Cruiser
+  Battlecruiser
+  AuxiliaryShip
+  Carrier
+  Battleship
+}
+
+enum Manufacturer {
+  JupiterIndustry
+  NomaShipping
+  Antonios
+  DawnAccord
+  Empty
+}
+
+enum Row {
+  Front
+  Middle
+  Back
+}
+
+enum Variant {
+  A
+  B
+  C
+  D
+}
+
+enum FighterType {
+  Small
+  Medium
+  Large
+}
+
+enum CarrierSlot {
+  SmallFighter
+  MediumFighter
+  LargeFighter
+  Corvette
+}
+
+enum ModuleSystem {
+  M1
+  M2
+  M3
+  A1
+  A2
+  A3
+  B1
+  B2
+  B3
+  C1
+  C2
+  C3
+  D1
+  D2
+  D3
+  E1
+  E2
+  F1
+  F2
+  G1
+  G2
+  H1
+  H2
+}
+
+enum ModuleKind {
+  unknown
+  weapon
+  propulsion
+  misc
+}
+
+enum SubsystemKind {
+  weapon
+  hangerAircraft
+  hangerAttackUav
+  hangerRepairUav
+  hangerMiscUav
+  misc
+}
+
+enum DamageType {
+  Projectile
+  Energy
+}
+
+enum WeaponTarget {
+  Building
+  Aircraft
+  SmallShip
+  LargeShip
+}
+
+enum SubsystemStatsKind {
+  none
+  projectile
+  energy
+  uav
+}
+
+enum TargetScope {
+  antiship
+  antiair
+  siege
+  uav
+}
+
+enum FleetRow {
+  front
+  middle
+  back
+  reinforcements
+  carried
+}
+
+// ──────────────────────────── Lookups ────────────────────────────
+
+model Attribute {
+  name        String  @id
+  description String
+
+  subsystems  SubsystemAttribute[]
+}
+
+// ──────────────────────────── Ships ────────────────────────────
+
+model Ship {
+  id              Int           @id
+  name            String
+  title           String
+  img             String
+  type            ShipType
+  variant         Variant
+  variantName     String
+  hasVariants     Boolean
+  manufacturer    Manufacturer
+  row             Row
+  commandPoints   Int
+  serviceLimit    Int
+
+  // Fighter-only (NULL when type != Fighter)
+  fighterType         FighterType?
+  fightersPerSquadron Int?
+
+  hangerCapacities   ShipHangerCapacity[]
+  modules            Module[]
+  shipUnlocks        BlueprintShipUnlock[]
+  fleetInstances     FleetShipInstance[]
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([name, variant])
+  @@index([type])
+  @@index([manufacturer])
+  @@index([name])
+}
+
+model ShipHangerCapacity {
+  id        Int          @id @default(autoincrement())
+  shipId    Int
+  ship      Ship         @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  slotType  CarrierSlot
+  capacity  Int
+
+  @@unique([shipId, slotType])
+  @@index([shipId])
+}
+
+// ──────────────────────────── Modules ────────────────────────────
+
+model Module {
+  id           Int           @id @default(autoincrement())
+  shipId       Int
+  ship         Ship          @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  system       ModuleSystem
+  kind         ModuleKind
+  isDefault    Boolean       @default(false)
+  img          String
+  name         String?
+  hp           Int?
+
+  // weapon stats (kind=weapon)
+  antishipDamage Int?
+  antiairDamage  Int?
+  siegeDamage    Int?
+
+  // propulsion stats (kind=propulsion)
+  cruise         Int?
+  warp           Int?
+
+  // misc stats (kind=misc)
+  armor          Int?
+  extraHp        Int?
+  energyShield   Int?
+  hpRecovery     Int?
+  storage        Int?
+
+  sources        ModuleSource[]
+  subsystems     Subsystem[]
+  moduleUnlocks  BlueprintModuleUnlock[]
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([shipId, system])
+  @@index([shipId])
+  @@index([kind])
+}
+
+model ModuleSource {
+  id        Int    @id @default(autoincrement())
+  moduleId  Int
+  module    Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  name      String
+
+  @@unique([moduleId, name])
+  @@index([moduleId])
+  @@index([name])
+}
+
+// ──────────────────────────── Subsystems ────────────────────────────
+
+model Subsystem {
+  id              Int             @id @default(autoincrement())
+  moduleId        Int
+  module          Module          @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  kind            SubsystemKind
+  count           Int
+  title           String
+  name            String
+
+  // weapon-shaped (kind=weapon | hangerAttackUav)
+  damageType        DamageType?
+  weaponTarget      WeaponTarget?
+  lockonEfficiency  Int?
+  alpha             Int?
+
+  // hanger fields (any hanger* kind)
+  hangerSlot        String?
+  capacity          Int?
+  repair            Int?
+
+  // SubsystemStats fields (flat)
+  statsKind         SubsystemStatsKind  @default(none)
+  attacksPerRoundA  Int?
+  attacksPerRoundB  Int?
+  duration          Int?
+  damageFrequency   Int?
+  cooldown          Int?
+  lockOnTime        Int?
+  operationCountA   Int?
+  operationCountB   Int?
+
+  // Per-scope position + damage (flat — at most 3 scopes per subsystem)
+  antishipPosition  Int?
+  antishipDamage    Int?
+  antiairPosition   Int?
+  antiairDamage     Int?
+  siegePosition     Int?
+  siegeDamage       Int?
+
+  attributes        SubsystemAttribute[]
+  priorities        TargetPriorityShipType[]
+
+  sortOrder         Int             @default(0)
+
+  @@index([moduleId])
+  @@index([kind])
+}
+
+model SubsystemAttribute {
+  subsystemId    Int
+  subsystem      Subsystem @relation(fields: [subsystemId], references: [id], onDelete: Cascade)
+  attributeName  String
+  attribute      Attribute @relation(fields: [attributeName], references: [name], onDelete: Restrict)
+
+  @@id([subsystemId, attributeName])
+  @@index([attributeName])
+}
+
+model TargetPriorityShipType {
+  id           Int         @id @default(autoincrement())
+  subsystemId  Int
+  subsystem    Subsystem   @relation(fields: [subsystemId], references: [id], onDelete: Cascade)
+  scope        TargetScope
+  order        Int
+  shipType     String
+
+  @@index([subsystemId, scope])
+}
+
+// ──────────────────────────── Blueprints ────────────────────────────
 
 model BlueprintAccount {
-  id           String @id @default(cuid())
-  accountIndex Int
-  accountName  String
-  /// JSON string of Record<number, (string|number)[]>[]
-  data         String
-  userId       String
-  user         User   @relation(fields: [userId], references: [uid], onDelete: Cascade)
+  id            String                @id @default(cuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountIndex  Int
+  accountName   String
+  bpLastSaved   DateTime              @default(now()) @updatedAt
+  shipUnlocks   BlueprintShipUnlock[]
+  unassignedTp  BlueprintUnassignedTp[]
 
   @@unique([userId, accountIndex])
+  @@index([userId])
+}
+
+model BlueprintShipUnlock {
+  id            Int               @id @default(autoincrement())
+  accountId     String
+  account       BlueprintAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  shipId        Int
+  ship          Ship              @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  techPoints    Int               @default(0)
+  moduleUnlocks BlueprintModuleUnlock[]
+
+  @@unique([accountId, shipId])
+  @@index([accountId])
+  @@index([shipId])
+}
+
+model BlueprintModuleUnlock {
+  id            Int                  @id @default(autoincrement())
+  shipUnlockId  Int
+  shipUnlock    BlueprintShipUnlock  @relation(fields: [shipUnlockId], references: [id], onDelete: Cascade)
+  moduleId      Int
+  module        Module               @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([shipUnlockId, moduleId])
+  @@index([shipUnlockId])
+}
+
+model BlueprintUnassignedTp {
+  id          Int               @id @default(autoincrement())
+  accountId   String
+  account     BlueprintAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  shipType    ShipType
+  techPoints  Int               @default(0)
+
+  @@unique([accountId, shipType])
+}
+
+// ──────────────────────────── Mail / Fleet / Alert ────────────────────────────
+
+model SavedMail {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  ops        String   // JSON string of TruncatedOp[]
+  createdAt  DateTime @default(now())
+  lastSaved  DateTime @default(now()) @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Fleet {
+  id              String              @id @default(cuid())
+  userId          String
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  maxCommandPoints Int                @default(400)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  instances       FleetShipInstance[]
+
+  @@index([userId])
+}
+
+model FleetShipInstance {
+  id            String       @id @default(cuid())
+  fleetId       String
+  fleet         Fleet        @relation(fields: [fleetId], references: [id], onDelete: Cascade)
+  shipId        Int
+  ship          Ship         @relation(fields: [shipId], references: [id], onDelete: Restrict)
+  fleetRow      FleetRow
+  carrierInstanceId String?
+  carrier       FleetShipInstance?  @relation("CarrierLoad", fields: [carrierInstanceId], references: [id], onDelete: Cascade)
+  carriedShips  FleetShipInstance[] @relation("CarrierLoad")
+  position      Int
+
+  @@index([fleetId])
+  @@index([carrierInstanceId])
 }
 
 model Alert {
-  id          String  @id
-  show        Boolean @default(true)
+  id          String   @id @default(cuid())
+  show        Boolean  @default(true)
   tag         String
   description String
-  date        String
+  date        DateTime @default(now())
+
+  @@index([date])
 }

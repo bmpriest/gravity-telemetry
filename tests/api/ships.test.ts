@@ -1,10 +1,10 @@
 import { describe, test, expect } from "vitest";
-import { data } from "@/data/ships";
+import { data } from "../../prisma/seed-data";
 import { credits } from "@/utils/credits";
 import { shipNameToImage } from "@/utils/ships";
 import type { AllModule } from "@/utils/ships";
 
-describe("Ship Data Tests", () => {
+describe("Seed Data Tests", () => {
   test("Super capital ship module subsystem stats should add up to overall module stats", () => {
     const modules = data
       .filter((ship) => "modules" in ship)
@@ -18,14 +18,23 @@ describe("Ship Data Tests", () => {
 
       const stats = ["antiship", "antiair", "siege"] as (keyof typeof mod.stats)[];
       for (const stat of stats) {
-        if (mod.stats[stat] === null || mod.subsystems.some((subsystem) => "stats" in subsystem && !(stat in subsystem.stats.targetPriority))) continue;
         const overallStat = mod.stats[stat];
+        if (overallStat === null) continue;
+        // Skip when any subsystem has null stats or is missing this scope from its target priority.
+        const skip = mod.subsystems.some((subsystem) => {
+          if (!("stats" in subsystem)) return false;
+          if (subsystem.stats === null) return true;
+          if (Array.isArray(subsystem.stats.targetPriority)) return true;
+          return !(stat in subsystem.stats.targetPriority);
+        });
+        if (skip) continue;
 
         const subsystemStat = mod.subsystems.reduce((acc, curr) => {
-          if (!("stats" in curr)) return acc;
+          if (!("stats" in curr) || curr.stats === null) return acc;
           if (Array.isArray(curr.stats.targetPriority)) return acc;
 
-          const currentTargetPriority = curr.stats.targetPriority[stat as keyof typeof curr.stats.targetPriority];
+          const tp = curr.stats.targetPriority as Record<string, { damage: number } | undefined>;
+          const currentTargetPriority = tp[stat];
           if (!currentTargetPriority) return acc;
 
           return acc + currentTargetPriority.damage;

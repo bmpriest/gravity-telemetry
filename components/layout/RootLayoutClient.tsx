@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
 import AppFooter from "./AppFooter";
@@ -9,6 +9,7 @@ import HomeContributors from "@/components/Home/Contributors";
 import HomeChangelog from "@/components/Home/Changelog";
 import HomeContact from "@/components/Home/Contact";
 import { useUserStore } from "@/stores/userStore";
+import { useFleetStore } from "@/stores/fleetStore";
 import { changelog } from "@/utils/changelog";
 
 interface Props {
@@ -18,9 +19,10 @@ interface Props {
 export default function RootLayoutClient({ children }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const init = useUserStore((s) => s.init);
-  const getUser = useUserStore((s) => s.getUser);
+  const user = useUserStore((s) => s.user);
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [showContributors, setShowContributors] = useState(false);
@@ -67,6 +69,18 @@ export default function RootLayoutClient({ children }: Props) {
     if (window.innerWidth < 768) setShowSidebar(false);
   }
 
+  // Force password change if required
+  useEffect(() => {
+    if (user && user.mustChangePassword && pathname !== "/account") {
+      router.replace("/account?force=1");
+    }
+  }, [user, pathname, router]);
+
+  // Pull server-side fleets when the user logs in (server is source of truth).
+  useEffect(() => {
+    if (user) void useFleetStore.getState().syncFromServer();
+  }, [user]);
+
   // App init
   useEffect(() => {
     // Restore dark mode before first paint (also handled by inline script in layout.tsx)
@@ -75,24 +89,7 @@ export default function RootLayoutClient({ children }: Props) {
       document.body.classList.add("dark");
     }
 
-    const uid = localStorage.getItem("uid");
-    const token = localStorage.getItem("token");
-    const hasQuery = window.location.search.length > 0;
-    const isTemporaryUser = (!uid || !token) && hasQuery;
-
-    init(!isTemporaryUser);
-
-    if (isTemporaryUser) {
-      // Once query params are cleared, create user
-      const handler = () => {
-        if (window.location.search.length === 0) {
-          window.removeEventListener("popstate", handler);
-          void getUser(true);
-        }
-      };
-      window.addEventListener("popstate", handler);
-      return () => window.removeEventListener("popstate", handler);
-    }
+    init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

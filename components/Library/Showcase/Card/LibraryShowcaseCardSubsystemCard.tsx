@@ -43,7 +43,7 @@ export default function LibraryShowcaseCardSubsystemCard({ subsystem }: Props) {
   const stats = useMemo(() => {
     if (!("stats" in subsystem)) return undefined;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { targetPriority, ...otherStats } = (subsystem as WeaponSubsystem).stats as Record<string, unknown> & { targetPriority: unknown };
+    const { targetPriority, ...otherStats } = (subsystem as WeaponSubsystem).stats as unknown as Record<string, unknown> & { targetPriority: unknown };
     return otherStats as Record<string, unknown>;
   }, [subsystem]);
 

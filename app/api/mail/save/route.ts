@@ -1,66 +1,80 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { getRandomCharacters, truncateOps, untruncateOps } from "@/utils/functions";
-import type { SaveTemplate, TruncatedOp } from "@/utils/types";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
+import { truncateOps, untruncateOps } from "@/utils/functions";
 import type { Op } from "quill";
+import type { TruncatedOp } from "@/utils/types";
 
-interface Body {
-  uid: string;
-  accessToken: string;
-  template: SaveTemplate;
-}
+const opSchema = z
+  .object({ insert: z.unknown() })
+  .passthrough();
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as Body;
+const saveSchema = z.object({
+  template: z.object({
+    name: z.string().min(1).max(50),
+    ops: z.array(opSchema).min(1),
+  }),
+});
 
-    const user = await prisma.user.findUnique({
-      where: { uid: body.uid },
-      include: { savedMails: true },
-    });
+const MAX_MAILS = 30;
 
-    if (!user) throw new Error("User not found.");
-    if (user.accessToken !== body.accessToken) throw new Error("Invalid credentials.");
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-    const template = body.template;
-    if (!template.ops.every((op) => "insert" in op)) throw new Error("Invalid ops.");
-    if (template.name.length > 50) throw new Error("Names can only be 50 characters long.");
-    if (user.savedMails.length >= 30) throw new Error("You can only have 30 saved mails. Try deleting some.");
-
-    const existing = user.savedMails.find((m) => m.name === template.name);
-    const today = new Date().toISOString().slice(0, 10);
-    const id = existing ? existing.id : getRandomCharacters(10);
-    const createdAt = existing ? existing.createdAt : today;
-
-    const truncatedOps = JSON.stringify(truncateOps(template.ops as Op[]));
-
-    await prisma.savedMail.upsert({
-      where: { id },
-      update: { ops: truncatedOps, lastSaved: today, name: template.name },
-      create: { id, name: template.name, ops: truncatedOps, lastSaved: today, createdAt, userId: body.uid },
-    });
-
-    // Return all mails with untruncated ops, newest first
-    const allMails = await prisma.savedMail.findMany({
-      where: { userId: body.uid },
-      orderBy: { lastSaved: "desc" },
-    });
-
-    const outcomeMails = allMails.map((m) => ({
-      ...m,
-      ops: untruncateOps(JSON.parse(m.ops) as TruncatedOp[]),
-    }));
-
-    const newMail = outcomeMails.find((m) => m.id === id) ?? null;
-
-    return NextResponse.json({ success: true, error: null, content: newMail, outcomeMails });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      content: null,
-      outcomeMails: null,
-    });
+  const body: unknown = await req.json();
+  const parsed = saveSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, parsed.error.issues[0]?.message ?? "Invalid mail");
   }
-}
+
+  const { template } = parsed.data;
+  const ops = template.ops as unknown as Op[];
+
+  const existing = await prisma.savedMail.findUnique({
+    where: { userId_name: { userId: sessionUser.id, name: template.name } },
+  });
+
+  if (!existing) {
+    const count = await prisma.savedMail.count({ where: { userId: sessionUser.id } });
+    if (count >= MAX_MAILS) {
+      return jsonError(
+        400,
+        `You can only have ${String(MAX_MAILS)} saved mails. Try deleting some.`
+      );
+    }
+  }
+
+  const truncatedOps = JSON.stringify(truncateOps(ops));
+
+  const saved = existing
+    ? await prisma.savedMail.update({
+        where: { id: existing.id },
+        data: { ops: truncatedOps },
+      })
+    : await prisma.savedMail.create({
+        data: {
+          userId: sessionUser.id,
+          name: template.name,
+          ops: truncatedOps,
+        },
+      });
+
+  const all = await prisma.savedMail.findMany({
+    where: { userId: sessionUser.id },
+    orderBy: { lastSaved: "desc" },
+  });
+
+  const expanded = all.map((m) => ({
+    ...m,
+    ops: untruncateOps(JSON.parse(m.ops) as TruncatedOp[]),
+  }));
+  const newMail = expanded.find((m) => m.id === saved.id) ?? null;
+
+  return NextResponse.json({
+    success: true,
+    content: newMail,
+    outcomeMails: expanded,
+  });
+});

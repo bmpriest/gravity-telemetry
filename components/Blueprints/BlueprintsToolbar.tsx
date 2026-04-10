@@ -6,16 +6,20 @@ import BlueprintsSettings from "./BlueprintsSettings";
 import BlueprintsSort from "./BlueprintsSort";
 import BlueprintsFilter from "./BlueprintsFilter";
 import BlueprintsSearch from "./BlueprintsSearch";
-import { useUserStore } from "@/stores/userStore";
-import { getObjectKey, getObjectValue } from "@/utils/functions";
-import type { ShipSorter, ShipFilter, BlueprintAllShip } from "@/utils/blueprints";
+import { useUserStore, type AccountSummary } from "@/stores/userStore";
+import type { ShipSorter, ShipFilter } from "@/utils/blueprints";
+
+interface SavePayload {
+  ships: Array<{ shipId: number; techPoints: number; moduleSystems: string[] }>;
+  unassignedTp: Record<string, number>;
+}
 
 interface Props {
   closeToolbar: boolean;
-  data: BlueprintAllShip[] | undefined;
+  accounts: AccountSummary[] | undefined;
   isOwner: boolean | undefined;
   accountIndex: number;
-  unassignedTp: number[];
+  buildSavePayload: () => SavePayload;
   onList: () => void;
   onVariants: () => void;
   onExposeModules: () => void;
@@ -26,10 +30,10 @@ interface Props {
 
 export default function BlueprintsToolbar({
   closeToolbar,
-  data,
+  accounts,
   isOwner,
   accountIndex,
-  unassignedTp,
+  buildSavePayload,
   onList,
   onVariants,
   onExposeModules,
@@ -40,7 +44,7 @@ export default function BlueprintsToolbar({
   const searchParams = useSearchParams();
   const router = useRouter();
   const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
+  const setBlueprintAccounts = useUserStore((s) => s.setBlueprintAccounts);
   const hasUnsavedChanges = useUserStore((s) => s.hasUnsavedChanges);
   const setHasUnsavedChanges = useUserStore((s) => s.setHasUnsavedChanges);
   const isUnsavedAccount = useUserStore((s) => s.isUnsavedAccount);
@@ -62,6 +66,12 @@ export default function BlueprintsToolbar({
   const [closeSettings, setCloseSettings] = useState(false);
   const [closeFilters, setCloseFilters] = useState(false);
   const [closeSorters, setCloseSorters] = useState(false);
+
+  const accountCount = accounts?.length ?? 0;
+
+  function getAccountName(index: number): string {
+    return accounts?.find((a) => a.accountIndex === index)?.accountName ?? "Unnamed";
+  }
 
   async function closeOptions(settings = true, filters = true, sorters = true) {
     if (settings) { setCloseSettings(true); setTimeout(() => setCloseSettings(false), 0); }
@@ -102,26 +112,27 @@ export default function BlueprintsToolbar({
     if (!user) return;
     setCreateNewAccount(true);
     const params = new URLSearchParams(searchParams.toString());
-    params.set("a", String(user.blueprints?.length ?? 0));
+    params.set("a", String(accountCount));
     router.push(`/modules/blueprint-tracker?${params.toString()}`);
   }
 
   async function saveBlueprints() {
     if (!user || !hasUnsavedChanges) return;
     setLoading(true);
+    const payload = buildSavePayload();
+    const accountName = getAccountName(accountIndex);
     const res = await fetch("/api/blueprints/save", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        uid: searchParams.get("u"),
-        accessToken: user.accessToken,
-        blueprints: data,
         accountIndex,
-        accountName: getObjectKey(user.blueprints[accountIndex]) ?? "Unnamed",
-        unassignedTp,
+        accountName,
+        ships: payload.ships,
+        unassignedTp: payload.unassignedTp,
       }),
     });
-    const { success: ok, error, newBlueprints } = await res.json();
+    const { success: ok, error, accounts: newAccounts } = await res.json();
     setLoading(false);
     if (!ok && error) { console.error(error); return; }
     if (ok) {
@@ -129,7 +140,7 @@ export default function BlueprintsToolbar({
       setIsUnsavedAccount(false);
       setTimeout(() => {
         setHasUnsavedChanges(false);
-        if (newBlueprints && user) setUser({ ...user, blueprints: newBlueprints });
+        if (newAccounts) setBlueprintAccounts(newAccounts);
         setSuccess(false);
       }, 1000);
     }
@@ -137,33 +148,27 @@ export default function BlueprintsToolbar({
 
   async function rename(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) return;
+    if (!user || editName === undefined) return;
     setRenameLoading(true);
     const res = await fetch("/api/blueprints/save", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        uid: searchParams.get("u"),
-        accessToken: user.accessToken,
-        blueprints: null,
-        accountIndex,
+        accountIndex: editName,
         accountName: newName,
+        ships: null,
       }),
     });
-    const { success: ok, error, newBlueprints } = await res.json();
+    const { success: ok, error, accounts: newAccounts } = await res.json();
     setRenameLoading(false);
-    if (!ok && error && error !== "Account not saved.") { console.error(error); return; }
+    if (!ok && error) { console.error(error); return; }
 
     setRenameSuccess(true);
-    if (error === "Account not saved.") {
-      const updated = [...user.blueprints];
-      updated[accountIndex] = { [newName]: getObjectValue(user.blueprints[accountIndex]) };
-      setUser({ ...user, blueprints: updated });
-    }
     setTimeout(() => {
       setEditName(undefined);
       setNewName("");
-      if (newBlueprints && user) setUser({ ...user, blueprints: newBlueprints });
+      if (newAccounts) setBlueprintAccounts(newAccounts);
       setRenameSuccess(false);
     }, 1000);
   }
@@ -174,25 +179,24 @@ export default function BlueprintsToolbar({
     setDeleteLoading(true);
     const res = await fetch("/api/blueprints/delete", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        uid: searchParams.get("u"),
-        accessToken: user.accessToken,
         accountIndex: deleteModal,
       }),
     });
-    const { success: ok, error, newBlueprints } = await res.json();
+    const { success: ok, error, accounts: newAccounts } = await res.json();
     setDeleteLoading(false);
     if (!ok && error) { console.error(error); return; }
 
     setDeleteSuccess(true);
     const params = new URLSearchParams(searchParams.toString());
-    params.set("a", String(user.blueprints.length - 2));
+    params.set("a", String(Math.max(0, accountCount - 2)));
     router.replace(`/modules/blueprint-tracker?${params.toString()}`);
 
     setTimeout(() => {
       setDeleteModal(undefined);
-      if (newBlueprints && user) setUser({ ...user, blueprints: newBlueprints });
+      if (newAccounts) setBlueprintAccounts(newAccounts);
       setDeleteSuccess(false);
     }, 1000);
   }
@@ -205,7 +209,7 @@ export default function BlueprintsToolbar({
       >
         <BlueprintsSettings
           close={closeSettings}
-          data={data}
+          accounts={accounts}
           isOwner={isOwner}
           onList={onList}
           onVariants={onVariants}
@@ -222,7 +226,7 @@ export default function BlueprintsToolbar({
         </div>
         <BlueprintsSearch onSearch={onSearch} />
 
-        {isOwner && (
+        {isOwner && user && (
           <button
             type="button"
             className={`du-btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 ${!hasUnsavedChanges ? "pointer-events-none opacity-50 brightness-50" : ""}`}
@@ -241,10 +245,10 @@ export default function BlueprintsToolbar({
 
         <p
           className={`absolute -bottom-7 text-nowrap rounded-full bg-body px-3 py-1 opacity-0 transition duration-500 ${
-            hasUnsavedChanges || !isOwner ? "opacity-100" : ""
+            (user && hasUnsavedChanges) || !user ? "opacity-100" : ""
           } ${isSticky ? "shadow dark:border dark:border-neutral-700 dark:shadow-none" : ""}`}
         >
-          {!isOwner ? "You are viewing someone else's blueprints" : "You have unsaved changes"}
+          {!user ? "Log in to sync your blueprints across devices" : "You have unsaved changes"}
         </p>
       </div>
 
@@ -257,7 +261,7 @@ export default function BlueprintsToolbar({
             onClick={(e) => e.stopPropagation()}
           >
             <label htmlFor="new-name" className="text-xl font-semibold">
-              Rename <span className="text-xl font-bold">{getObjectKey(user.blueprints[editName])}</span>?
+              Rename <span className="text-xl font-bold">{getAccountName(editName)}</span>?
             </label>
             <input
               id="new-name"
@@ -296,7 +300,7 @@ export default function BlueprintsToolbar({
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-xl font-semibold">
-              Delete <span className="text-xl font-bold">{getObjectKey(user.blueprints[deleteModal])}</span>?
+              Delete <span className="text-xl font-bold">{getAccountName(deleteModal)}</span>?
             </h3>
             <button
               type="submit"

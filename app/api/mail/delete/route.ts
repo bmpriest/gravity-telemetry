@@ -1,44 +1,35 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
 import { untruncateOps } from "@/utils/functions";
 import type { TruncatedOp } from "@/utils/types";
 
-interface Body {
-  uid: string;
-  accessToken: string;
-  mailId: string;
-}
+const deleteSchema = z.object({ mailId: z.string().min(1) });
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as Body;
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-    const user = await prisma.user.findUnique({ where: { uid: body.uid } });
-    if (!user) throw new Error("User not found.");
-    if (user.accessToken !== body.accessToken) throw new Error("Invalid credentials.");
+  const body: unknown = await req.json();
+  const parsed = deleteSchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "Invalid input");
 
-    const mail = await prisma.savedMail.findFirst({ where: { id: body.mailId, userId: body.uid } });
-    if (!mail) throw new Error("Mail not found.");
+  const mail = await prisma.savedMail.findFirst({
+    where: { id: parsed.data.mailId, userId: sessionUser.id },
+  });
+  if (!mail) return jsonError(404, "Mail not found");
 
-    await prisma.savedMail.delete({ where: { id: body.mailId } });
+  await prisma.savedMail.delete({ where: { id: mail.id } });
 
-    const remaining = await prisma.savedMail.findMany({
-      where: { userId: body.uid },
-      orderBy: { lastSaved: "desc" },
-    });
+  const remaining = await prisma.savedMail.findMany({
+    where: { userId: sessionUser.id },
+    orderBy: { lastSaved: "desc" },
+  });
+  const content = remaining.map((m) => ({
+    ...m,
+    ops: untruncateOps(JSON.parse(m.ops) as TruncatedOp[]),
+  }));
 
-    const content = remaining.map((m) => ({
-      ...m,
-      ops: untruncateOps(JSON.parse(m.ops) as TruncatedOp[]),
-    }));
-
-    return NextResponse.json({ success: true, error: null, content });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      content: null,
-    });
-  }
-}
+  return NextResponse.json({ success: true, content });
+});

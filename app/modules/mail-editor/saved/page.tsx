@@ -7,8 +7,8 @@ import { useUserStore } from "@/stores/userStore";
 
 export default function MailSavedPage() {
   const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
-  const savedMails = user?.savedMails;
+  const savedMails = useUserStore((s) => s.savedMails);
+  const setSavedMails = useUserStore((s) => s.setSavedMails);
 
   const [displayCount, setDisplayCount] = useState(5);
   const [deleteMail, setDeleteMail] = useState<SaveTemplate>();
@@ -38,15 +38,16 @@ export default function MailSavedPage() {
     setLoading(true);
     const res = await fetch("/api/mail/delete", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid: user.uid, accessToken: user.accessToken, mailId: deleteMail.id }),
+      body: JSON.stringify({ mailId: deleteMail.id }),
     });
     const { success, error, content } = await res.json();
     setLoading(false);
     if (!success && error) { console.error(error); return; }
     if (success && content) {
       setDeleteSuccess(true);
-      setUser({ ...user, savedMails: content });
+      setSavedMails(content);
       setTimeout(() => setDeleteMail(undefined), 1000);
     }
   }

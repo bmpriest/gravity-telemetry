@@ -12,29 +12,26 @@ interface Props {
   outputOps: Op[];
   savedMail: SaveTemplate | undefined;
   onToggleDialog: (val: boolean) => void;
-  onNewQuery: (uid: string, id: string) => void;
+  onNewQuery: (id: string) => void;
 }
 
 export default function MailButtonSave({ showDialog, outputOps, savedMail, onToggleDialog, onNewQuery }: Props) {
   const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
+  const setSavedMails = useUserStore((s) => s.setSavedMails);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const userQuery = searchParams.get("u");
 
   const [templateName, setTemplateName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const isOwn = !userQuery || userQuery === user?.uid;
-  const placeholder = `Name your ${isOwn ? "new mail" : "clone"}!`;
+  const placeholder = "Name your new mail!";
 
   async function getOwnership() {
     let tries = 0;
     while (tries < 10) {
-      const ownership = isOwn ? "" : "Clone of ";
-      if (savedMail) setTemplateName((ownership + savedMail.name).slice(0, 100));
+      if (savedMail) setTemplateName(savedMail.name.slice(0, 100));
       tries++;
       await delay(50);
     }
@@ -51,21 +48,21 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
     setLoading(true);
     const res = await fetch("/api/mail/save", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid: user.uid, accessToken: user.accessToken, template: { name: templateName, ops: outputOps } }),
+      body: JSON.stringify({ template: { name: templateName, ops: outputOps } }),
     });
     const { success: ok, error: err, content, outcomeMails } = await res.json();
     setLoading(false);
     if (!ok && err) { setError(err); return; }
     if (ok && content && outcomeMails) {
       setSuccess(true);
-      setUser({ ...user, savedMails: outcomeMails });
+      setSavedMails(outcomeMails);
       setTimeout(() => { setSuccess(false); onToggleDialog(false); }, 1000);
       const params = new URLSearchParams(searchParams.toString());
-      params.set("u", user.uid);
       params.set("id", content.id);
       router.replace(`?${params.toString()}`);
-      onNewQuery(user.uid, content.id);
+      onNewQuery(content.id);
     }
   }
 
@@ -76,7 +73,7 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
         className={`du-btn flex select-none items-center justify-center gap-2 rounded-xl border-blue-300 bg-blue-100 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:hover:bg-blue-700 ${showDialog ? "scale-105 border-blue-400 bg-blue-200 dark:bg-blue-700" : "dark:bg-blue-800"}`}
         onClick={() => onToggleDialog(!showDialog)}
       >
-        <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">{isOwn ? "Save" : "Clone"}</span>
+        <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">Save</span>
         <img className="size-5 transition duration-500 dark:invert" src="/ui/save.svg" aria-hidden="true" />
       </button>
       {showDialog && (
@@ -102,7 +99,7 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
                 >
                   {loading && <span className="du-loading du-loading-spinner du-loading-md transition duration-500 group-hover:text-white group-hover:duration-200 dark:group-hover:text-black" />}
                   <span className={`text-black transition duration-500 group-hover:text-white group-hover:duration-200 dark:text-white dark:group-hover:text-black ${!templateName ? "text-white dark:text-black" : ""}`}>
-                    {isOwn ? (loading ? "Saving..." : success ? "Saved!" : "Save") : (loading ? "Cloning..." : success ? "Cloned!" : "Clone")}
+                    {loading ? "Saving..." : success ? "Saved!" : "Save"}
                   </span>
                 </button>
               </div>

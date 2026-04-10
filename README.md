@@ -17,7 +17,7 @@
 
 ## Ship Data
 
-Feel free to use the ship data, which can be found in [`/data/ships.ts`](./data/ships.ts). It is out of date and I will be moving towards a database solution, but will attempt to keep a copy for easy export.
+Feel free to use the ship data. The canonical source now lives in PostgreSQL (managed via the `/admin` UI). A snapshot is kept in [`/prisma/seed-data.ts`](./prisma/seed-data.ts) as the bootstrap source for `npm run db:seed`.
 
 To quickly convert the data to JSON, you can copy the array object and run `JSON.stringify(<data>)` in your browser console.
 
@@ -25,17 +25,30 @@ Each ship follows the data structures in their type declarations in [`/utils/shi
 
 ## Project Setup
 
-If you wish to run the site locally:
+### With Docker (recommended)
 
-1. Ensure [Node.js](https://nodejs.org/) is installed.
+1. Copy `.env.example` to `.env` and edit as needed (database credentials, admin user, etc.).
+2. Build and start:
 
-2. Create a `.env` file in the root of the project. You can use the .env.example to start!
+```sh
+docker compose up --build
+```
 
-3. Install dependencies and run locally:
+The first launch will run the Postgres migrations, seed ship data (when `RUN_SEED=true`), and create an admin user from `ADMIN_USERNAME`/`ADMIN_PASSWORD`. The admin will be forced to change their password on first sign-in.
+
+The site runs at http://localhost:3000.
+
+### Running locally
+
+1. Ensure [Node.js](https://nodejs.org/) and PostgreSQL are installed.
+2. Create a `.env` file in the root of the project. You can use the `.env.example` to start.
+3. Install dependencies, apply migrations, seed ship data, and run the dev server:
 
 ```sh
 npm install
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
-4. The site should be running on http:\//localhost:3000.
+The site runs at http://localhost:3000. Sign in as the configured admin to access the `/admin` UI for managing ships, modules, subsystems, attributes, and users.

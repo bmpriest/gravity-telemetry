@@ -1,56 +1,48 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
+import { listAccounts } from "@/lib/blueprints";
 
-interface Body {
-  uid: string;
-  accessToken: string;
-  accountIndex: number;
-}
+const deleteSchema = z.object({
+  accountIndex: z.number().int().min(0).max(9),
+});
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as Body;
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-    const user = await prisma.user.findUnique({ where: { uid: body.uid } });
-    if (!user) throw new Error("User not found.");
-    if (user.accessToken !== body.accessToken) throw new Error("Invalid credentials.");
+  const body: unknown = await req.json();
+  const parsed = deleteSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, "Invalid input");
+  }
 
-    // Delete the target account
-    await prisma.blueprintAccount.delete({
-      where: { userId_accountIndex: { userId: body.uid, accountIndex: body.accountIndex } },
+  const { accountIndex } = parsed.data;
+
+  await prisma.$transaction(async (tx) => {
+    const target = await tx.blueprintAccount.findUnique({
+      where: {
+        userId_accountIndex: { userId: sessionUser.id, accountIndex },
+      },
     });
+    if (!target) return;
 
-    // Re-index accounts that come after the deleted one
-    const following = await prisma.blueprintAccount.findMany({
-      where: { userId: body.uid, accountIndex: { gt: body.accountIndex } },
+    await tx.blueprintAccount.delete({ where: { id: target.id } });
+
+    // Re-index following accounts down by 1
+    const following = await tx.blueprintAccount.findMany({
+      where: { userId: sessionUser.id, accountIndex: { gt: accountIndex } },
       orderBy: { accountIndex: "asc" },
     });
-
-    for (const account of following) {
-      await prisma.blueprintAccount.update({
-        where: { id: account.id },
-        data: { accountIndex: account.accountIndex - 1 },
+    for (const acct of following) {
+      await tx.blueprintAccount.update({
+        where: { id: acct.id },
+        data: { accountIndex: acct.accountIndex - 1 },
       });
     }
+  });
 
-    const today = new Date().toISOString().slice(0, 10);
-    await prisma.user.update({ where: { uid: body.uid }, data: { bpLastSaved: today } });
-
-    const allAccounts = await prisma.blueprintAccount.findMany({
-      where: { userId: body.uid },
-      orderBy: { accountIndex: "asc" },
-    });
-
-    const newBlueprints = allAccounts.map((a) => ({
-      [a.accountName]: JSON.parse(a.data) as Record<string, (string | number)[]>[],
-    }));
-    return NextResponse.json({ success: true, error: null, newBlueprints });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      newBlueprints: null,
-    });
-  }
-}
+  const accounts = await listAccounts(sessionUser.id);
+  return NextResponse.json({ success: true, accounts });
+});

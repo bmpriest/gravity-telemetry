@@ -42,15 +42,15 @@ export default function MailEditPage() {
     return () => clearTimeout(t);
   }, [selectedMailTemplate]);
 
-  async function getMail(uid?: string, id?: string) {
-    const userQuery = uid ?? searchParams.get("u");
+  async function getMail(id?: string) {
     const idQuery = id ?? searchParams.get("id");
-    if (!userQuery || !idQuery) return;
+    if (!idQuery) return;
     setLoading(true);
     const res = await fetch("/api/mail/get", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid: userQuery, mailId: idQuery }),
+      body: JSON.stringify({ mailId: idQuery }),
     });
     const { success, error, content } = await res.json();
     setLoading(false);
@@ -108,7 +108,7 @@ export default function MailEditPage() {
       <div className="flex items-center justify-center gap-5">
         <MailButtonClear showDialog={showClearDialog} onToggleDialog={(v) => { setShowClearDialog(v); deselectOthers("clear"); }} onClearText={triggerClear} />
         <MailButtonCopy showDialog={showCopyDialog} outputText={outputText} onToggleDialog={setShowCopyDialog} />
-        <MailButtonSave showDialog={showSaveDialog} outputOps={outputOps} savedMail={savedMail} onToggleDialog={(v) => { setShowSaveDialog(v); deselectOthers("save"); }} onNewQuery={(uid, id) => void getMail(uid, id)} />
+        <MailButtonSave showDialog={showSaveDialog} outputOps={outputOps} savedMail={savedMail} onToggleDialog={(v) => { setShowSaveDialog(v); deselectOthers("save"); }} onNewQuery={(id) => void getMail(id)} />
         <MailButtonShare showDialog={showShareDialog} savedMail={savedMail} onToggleDialog={setShowShareDialog} />
       </div>
 

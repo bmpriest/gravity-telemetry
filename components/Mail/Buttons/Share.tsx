@@ -15,9 +15,8 @@ export default function MailButtonShare({ showDialog, savedMail, onToggleDialog 
   function shareText() {
     if (showDialog) return;
     const baseOrigin = process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin;
-    const u = searchParams.get("u");
     const id = searchParams.get("id");
-    void navigator.clipboard.writeText(`${baseOrigin}/modules/mail-editor/edit?u=${u}&id=${id}`);
+    void navigator.clipboard.writeText(`${baseOrigin}/modules/mail-editor/edit?id=${id}`);
     onToggleDialog(true);
     setTimeout(() => onToggleDialog(false), 1500);
   }

@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useUserStore } from "@/stores/userStore";
-import { getObjectKey, getObjectValue } from "@/utils/functions";
-import type { BlueprintAllShip } from "@/utils/blueprints";
+import { useUserStore, type AccountSummary } from "@/stores/userStore";
 
 interface Props {
   close: boolean;
-  data: BlueprintAllShip[] | undefined;
+  accounts: AccountSummary[] | undefined;
   isOwner: boolean | undefined;
   onList: () => void;
   onVariants: () => void;
@@ -18,7 +16,7 @@ interface Props {
   onCreateNew: () => void;
 }
 
-export default function BlueprintsSettings({ close, data, isOwner, onList, onVariants, onExposeModules, onEditName, onDelete, onCreateNew }: Props) {
+export default function BlueprintsSettings({ close, accounts, isOwner, onList, onVariants, onExposeModules, onEditName, onDelete, onCreateNew }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const user = useUserStore((s) => s.user);
@@ -39,22 +37,8 @@ export default function BlueprintsSettings({ close, data, isOwner, onList, onVar
     if (close) setShowSettings(false);
   }, [close]);
 
-  const blueprints = user?.blueprints;
+  const accountCount = accounts?.length ?? 0;
   const aQuery = searchParams.get("a");
-
-  function getTotalTP(ships: Record<string, (string | number)[]>[]) {
-    const usedShips: string[] = [];
-    return ships.reduce((total, ship) => {
-      const id = getObjectKey(ship);
-      const [variant, tp] = getObjectValue(ship);
-      const shipInData = data?.find((s) => s.id.toString() === id && s.variant === variant);
-      if (shipInData?.hasVariants) {
-        if (usedShips.includes(shipInData.name)) return total;
-        usedShips.push(shipInData.name);
-      }
-      return total + Number(tp);
-    }, 0);
-  }
 
   function goToAccount(index: number) {
     if (isUnsavedAccount) return;
@@ -123,45 +107,45 @@ export default function BlueprintsSettings({ close, data, isOwner, onList, onVar
             <label className="transition duration-500" htmlFor="modulesType">Expose Modules</label>
           </div>
 
-          {isOwner && blueprints && (
+          {isOwner && accounts && (
             <div className="mt-4 flex w-full flex-col items-center justify-center">
               <h3 className="text-lg font-semibold transition duration-500">Account Switcher</h3>
-              <p className="mb-2 text-sm transition duration-500">{blueprints.length}/10 accounts</p>
+              <p className="mb-2 text-sm transition duration-500">{accountCount}/10 accounts</p>
 
               <ol className="flex w-full flex-col items-center justify-start gap-1">
-                {blueprints.map((account, index) => (
+                {accounts.map((account) => (
                   <li
-                    key={index}
-                    className={`w-full ${isUnsavedAccount && aQuery !== index.toString() ? "du-tooltip" : ""}`}
+                    key={account.accountIndex}
+                    className={`w-full ${isUnsavedAccount && aQuery !== account.accountIndex.toString() ? "du-tooltip" : ""}`}
                     data-tip="Save your current account first!"
                   >
                     <button
                       className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg py-1 transition duration-500 hover:duration-300 ${
-                        aQuery === index.toString()
+                        aQuery === account.accountIndex.toString()
                           ? "bg-neutral-200 hover:bg-neutral-300/75 dark:bg-neutral-700 dark:hover:bg-neutral-600"
                           : "bg-neutral-100/25 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700"
-                      } ${isUnsavedAccount && aQuery !== index.toString() ? "pointer-events-none opacity-50" : ""}`}
+                      } ${isUnsavedAccount && aQuery !== account.accountIndex.toString() ? "pointer-events-none opacity-50" : ""}`}
                       type="button"
-                      onClick={() => goToAccount(index)}
+                      onClick={() => goToAccount(account.accountIndex)}
                     >
                       {user && (
                         <h5 className="inline-flex items-center justify-center font-medium transition duration-500">
-                          {getObjectKey(account)}
+                          {account.accountName}
                           <span className="du-tooltip ms-2" data-tip="Edit Name">
                             <button
                               className="fo-btn fo-btn-circle fo-btn-text size-6 min-h-6"
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); onEditName(index); }}
+                              onClick={(e) => { e.stopPropagation(); onEditName(account.accountIndex); }}
                             >
                               <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/pencil.svg" alt="Edit account name" />
                             </button>
                           </span>
-                          {user.blueprints.length > 1 && (
+                          {accountCount > 1 && (
                             <span className="du-tooltip" data-tip="Delete">
                               <button
                                 className="fo-btn fo-btn-circle fo-btn-text size-6 min-h-6"
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); onDelete(index); }}
+                                onClick={(e) => { e.stopPropagation(); onDelete(account.accountIndex); }}
                               >
                                 <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/trash.svg" alt="Delete account" />
                               </button>
@@ -169,15 +153,12 @@ export default function BlueprintsSettings({ close, data, isOwner, onList, onVar
                           )}
                         </h5>
                       )}
-                      <p className="text-sm transition duration-500">
-                        {getTotalTP(getObjectValue(account)).toLocaleString()} Tech Points
-                      </p>
                     </button>
                   </li>
                 ))}
               </ol>
 
-              {!isUnsavedAccount && blueprints.length < 10 && (
+              {!isUnsavedAccount && accountCount < 10 && (
                 <button
                   className="mt-1 flex w-full cursor-pointer flex-col items-center justify-center rounded-lg py-2 transition hover:bg-neutral-100 dark:hover:bg-neutral-700"
                   type="button"

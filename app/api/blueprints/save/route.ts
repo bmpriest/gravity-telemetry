@@ -1,86 +1,123 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { z } from "zod";
+import { ShipType } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { getObjectValue } from "@/utils/functions";
-import type { BlueprintAllShip } from "@/utils/blueprints";
+import { requireUser } from "@/lib/auth";
+import { jsonError, withErrorHandler } from "@/lib/httpError";
+import { listAccounts } from "@/lib/blueprints";
 
-interface Body {
-  uid: string;
-  accessToken: string;
-  blueprints: BlueprintAllShip[] | null;
-  unassignedTp: [number, number, number, number, number, number, number, number, number];
-  accountIndex: number;
-  accountName: string;
-}
+const saveSchema = z.object({
+  accountIndex: z.number().int().min(0).max(9),
+  accountName: z.string().min(1).max(40),
+  // null = rename-only (only updates accountName, leaves ships intact)
+  ships: z
+    .array(
+      z.object({
+        shipId: z.number().int(),
+        techPoints: z.number().int().min(0),
+        moduleSystems: z.array(z.string()).optional(),
+      })
+    )
+    .nullable()
+    .optional(),
+  // Partial map of ShipType -> unassigned tech points
+  unassignedTp: z.record(z.string(), z.number().int().min(0)).optional(),
+});
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as Body;
+const SHIP_TYPES = new Set<string>(Object.values(ShipType));
 
-    if (body.accountIndex > 9) throw new Error("You can only have 10 saved accounts at the moment. Sorry!");
+export const POST = withErrorHandler(async (req: NextRequest) => {
+  const sessionUser = await requireUser();
 
-    const user = await prisma.user.findUnique({ where: { uid: body.uid } });
-    if (!user) throw new Error("User not found.");
-    if (user.accessToken !== body.accessToken) throw new Error("Invalid credentials.");
+  const body: unknown = await req.json();
+  const parsed = saveSchema.safeParse(body);
+  if (!parsed.success) {
+    return jsonError(400, parsed.error.issues[0]?.message ?? "Invalid input");
+  }
 
-    // Check if this is a rename-only (no blueprints sent) and the account exists
-    const existing = await prisma.blueprintAccount.findUnique({
-      where: { userId_accountIndex: { userId: body.uid, accountIndex: body.accountIndex } },
-    });
-    if (!body.blueprints && !existing) throw new Error("Account not saved.");
+  const { accountIndex, accountName, ships, unassignedTp } = parsed.data;
 
-    const today = new Date().toISOString().slice(0, 10);
-
-    let ships: Record<number, (string | number)[]>[] | null = null;
-    if (body.blueprints) {
-      ships = body.blueprints
-        .map((ship) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const s = ship as any;
-          if (!s.unlocked) return { [s.id]: [] };
-          if (!("modules" in s)) return { [s.id]: [s.variant, s.techPoints] };
-          return { [s.id]: [s.variant, s.techPoints, ...s.modules.filter((m: any) => m.unlocked).map((m: any) => m.system)] };
-        })
-        .filter((obj) => (getObjectValue(obj) as (string | number)[]).length > 0) as Record<number, (string | number)[]>[];
-
-      ships.unshift({ 999: body.unassignedTp });
+  // Validate unassignedTp keys against ShipType enum.
+  const cleanedUnassignedTp: Array<{ shipType: ShipType; techPoints: number }> = [];
+  if (unassignedTp) {
+    for (const [k, v] of Object.entries(unassignedTp)) {
+      if (!SHIP_TYPES.has(k)) {
+        return jsonError(400, `Unknown ship type: ${k}`);
+      }
+      cleanedUnassignedTp.push({ shipType: k as ShipType, techPoints: v });
     }
+  }
 
-    const dataToSave = ships
-      ? JSON.stringify(ships)
-      : existing!.data;
-
-    await prisma.blueprintAccount.upsert({
-      where: { userId_accountIndex: { userId: body.uid, accountIndex: body.accountIndex } },
-      update: { accountName: body.accountName, data: dataToSave },
-      create: {
-        userId: body.uid,
-        accountIndex: body.accountIndex,
-        accountName: body.accountName,
-        data: dataToSave,
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.blueprintAccount.findUnique({
+      where: {
+        userId_accountIndex: { userId: sessionUser.id, accountIndex },
       },
     });
 
-    await prisma.user.update({
-      where: { uid: body.uid },
-      data: { bpLastSaved: today },
-    });
+    // Rename-only path: existing account, ships not provided.
+    if (ships === null || ships === undefined) {
+      if (!existing) throw new Error("Account not saved.");
+      await tx.blueprintAccount.update({
+        where: { id: existing.id },
+        data: { accountName },
+      });
+      return;
+    }
 
-    // Return all blueprint accounts for this user
-    const allAccounts = await prisma.blueprintAccount.findMany({
-      where: { userId: body.uid },
-      orderBy: { accountIndex: "asc" },
-    });
+    const accountId = existing
+      ? (await tx.blueprintAccount.update({
+          where: { id: existing.id },
+          data: { accountName },
+        })).id
+      : (await tx.blueprintAccount.create({
+          data: {
+            userId: sessionUser.id,
+            accountIndex,
+            accountName,
+          },
+        })).id;
 
-    const newBlueprints = allAccounts.map((a) => ({
-      [a.accountName]: JSON.parse(a.data) as Record<string, (string | number)[]>[],
-    }));
-    return NextResponse.json({ success: true, error: null, newBlueprints });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : "Something went wrong. Try again later.",
-      newBlueprints: null,
-    });
-  }
-}
+    // Replace ships: delete child rows then re-create.
+    await tx.blueprintShipUnlock.deleteMany({ where: { accountId } });
+    await tx.blueprintUnassignedTp.deleteMany({ where: { accountId } });
+
+    for (const ship of ships) {
+      const unlock = await tx.blueprintShipUnlock.create({
+        data: {
+          accountId,
+          shipId: ship.shipId,
+          techPoints: ship.techPoints,
+        },
+      });
+      if (ship.moduleSystems && ship.moduleSystems.length > 0) {
+        // Look up module IDs for this ship by system name.
+        const modules = await tx.module.findMany({
+          where: { shipId: ship.shipId, system: { in: ship.moduleSystems as never[] } },
+          select: { id: true },
+        });
+        if (modules.length > 0) {
+          await tx.blueprintModuleUnlock.createMany({
+            data: modules.map((m) => ({
+              shipUnlockId: unlock.id,
+              moduleId: m.id,
+            })),
+          });
+        }
+      }
+    }
+
+    if (cleanedUnassignedTp.length > 0) {
+      await tx.blueprintUnassignedTp.createMany({
+        data: cleanedUnassignedTp.map((u) => ({
+          accountId,
+          shipType: u.shipType,
+          techPoints: u.techPoints,
+        })),
+      });
+    }
+  });
+
+  const accounts = await listAccounts(sessionUser.id);
+  return NextResponse.json({ success: true, accounts });
+});
