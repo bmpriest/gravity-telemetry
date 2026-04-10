@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import type { Op } from "quill";
+import type { Op } from "quill/core";
 import type { SaveTemplate } from "@/utils/types";
 import { useUserStore } from "@/stores/userStore";
 import { delay } from "@/utils/functions";

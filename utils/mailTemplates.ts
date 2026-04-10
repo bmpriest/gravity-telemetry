@@ -1,4 +1,4 @@
-import { Op } from "quill";
+import type { Op } from "quill/core"
 
 export const formattingColors = {
   R: "#ff0000",

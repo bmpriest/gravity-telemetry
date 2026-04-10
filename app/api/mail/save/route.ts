@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireUser } from "@/lib/auth";
 import { jsonError, withErrorHandler } from "@/lib/httpError";
 import { truncateOps, untruncateOps } from "@/utils/functions";
-import type { Op } from "quill";
+import type { Op } from "quill/core";
 import type { TruncatedOp } from "@/utils/types";
 
 const opSchema = z

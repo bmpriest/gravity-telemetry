@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { DataSet, RegExpMatcher, englishDataset, englishRecommendedTransformers, pattern } from "obscenity";
-import type { Delta, Op } from "quill";
+import type { Delta, Op } from "quill/core";
 import MailQuill, { type MailQuillHandle } from "./MailQuill";
 import { formattingColors } from "@/utils/mailTemplates";
 

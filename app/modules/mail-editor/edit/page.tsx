@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import type { Op } from "quill";
+import type { Op } from "quill/core";
 import type { SaveTemplate } from "@/utils/types";
 import MailEditor from "@/components/Mail/MailEditor";
 import MailTemplates from "@/components/Mail/MailTemplates";

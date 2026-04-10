@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useImperativeHandle, forwardRef } from "react";
-import type { Delta, Op } from "quill";
+import type { Delta, Op } from "quill/core";
 import { formattingColors } from "@/utils/mailTemplates";
 import { delay } from "@/utils/functions";
 

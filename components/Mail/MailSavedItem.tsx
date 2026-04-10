@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Op } from "quill";
+import type { Op } from "quill/core";
 import MailQuill from "./MailQuill";
 import { useUserStore } from "@/stores/userStore";
 import { formatDate } from "@/utils/functions";

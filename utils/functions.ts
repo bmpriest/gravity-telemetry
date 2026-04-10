@@ -1,4 +1,4 @@
-import type { Op } from "quill";
+import type { Op } from "quill/core";
 import type { TruncatedOp } from "./types";
 
 /**
