@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { AllShip } from "@/utils/ships";
-import type { Fleet, FleetRow, FleetShipInstance } from "@/utils/fleet";
+import type { Fleet, FleetRow, FleetShipInstance, CarrierCapacity } from "@/utils/fleet";
 import { createEmptyFleet, createFleetInstance, getCarrierCapacity, getCarriableType, canHangarHoldAircraft } from "@/utils/fleet";
 
 const STORAGE_KEY = "fleetBuilderSavedFleets";
@@ -200,7 +200,6 @@ export const useFleetStore = create<FleetState>()(
         const currentConfig = state.fleet.moduleConfig?.[instanceId] || {};
         const newConfig = { ...currentConfig };
         
-        // Toggle logic: if clicking the already selected module, remove it
         if (newConfig[category] === moduleId) {
           delete newConfig[category];
         } else {
@@ -212,7 +211,6 @@ export const useFleetStore = create<FleetState>()(
           [instanceId]: newConfig,
         };
 
-        // If changing modules reduced aircraft capacity, we must unload invalid aircraft
         const carrierInstance = get().getAllRowInstances().find(i => i.id === instanceId);
         const carrierShip = carrierInstance ? ships.find(s => s.id === carrierInstance.shipId && s.variant === carrierInstance.variant) : null;
         
@@ -225,7 +223,7 @@ export const useFleetStore = create<FleetState>()(
           const aircraft = currentLoads.map(inst => {
             const ship = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
             return { inst, type: ship ? getCarriableType(ship) : null };
-          }).filter((a): a is { inst: FleetShipInstance; type: string } => a.type !== null);
+          }).filter((a): a is { inst: FleetShipInstance; type: CarrierCapacity["type"] } => a.type !== null);
 
           const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
           aircraft.sort((a, b) => order[a.type] - order[b.type]);
@@ -235,7 +233,7 @@ export const useFleetStore = create<FleetState>()(
           
           for (const item of aircraft) {
             const fitSlot = tempCapacities
-              .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type as any))
+              .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type))
               .sort((a, b) => order[a.type] - order[b.type])[0];
             
             if (fitSlot) {
@@ -336,7 +334,6 @@ export const useFleetStore = create<FleetState>()(
         let savedFleets: Fleet[] = savedRaw ? (JSON.parse(savedRaw) as Fleet[]) : [];
         let fleet: Fleet = currentRaw ? (JSON.parse(currentRaw) as Fleet) : createEmptyFleet();
 
-        // Migration/Sanitization
         const sanitize = (f: Fleet) => {
           if (!f.rows.reinforcements) f.rows.reinforcements = [];
           if (!f.moduleConfig) f.moduleConfig = {};
@@ -399,7 +396,6 @@ export const useFleetStore = create<FleetState>()(
   }))
 );
 
-// Persist current fleet to localStorage whenever it changes
 if (typeof window !== "undefined") {
   useFleetStore.subscribe(
     (state) => state.fleet,

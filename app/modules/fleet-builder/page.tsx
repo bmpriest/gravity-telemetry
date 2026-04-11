@@ -27,9 +27,7 @@ export default function FleetBuilderPage() {
   const { init } = useUserStore();
   const blueprintAccounts = useBlueprintStore((s) => s.accounts);
 
-  // Owned-ships filter is keyed off the first blueprint account (matches the
-  // pre-refactor behavior where the autosaved account drove this). The lookup
-  // is a Set of `Ship.id` (the DB PK, which is unique per ship+variant).
+  // Owned-ships filter is keyed off the first blueprint account
   const ownedShipIds = useMemo<Set<number> | null>(() => {
     const account = blueprintAccounts[0];
     if (!account) return null;
@@ -131,7 +129,6 @@ export default function FleetBuilderPage() {
   function handleAddShip(ship: AllShip) {
     const carriableType = getCarriableType(ship);
     if (carriableType !== null) {
-      // Try to find an available carrier for this aircraft
       const allRowInstances = getAllRowInstances();
       for (const inst of allRowInstances) {
         const error = loadOntoCarrier(inst.id, ship, allShips);
@@ -159,7 +156,6 @@ export default function FleetBuilderPage() {
     
     const carriableType = getCarriableType(ship);
     if (carriableType !== null) {
-      // For drops, we also try to auto-assign
       handleAddShip(ship);
       return;
     }
@@ -274,7 +270,7 @@ export default function FleetBuilderPage() {
                 onMoveShips={(data) => handleMoveShips(data, col.row)}
                 onAddShip={(ship) => addShip(ship, col.row)}
                 onRemoveOne={(id) => removeShip(id)}
-                onModules={(instances) => setModuleModalInstances(instances)}
+                onModules={(instances: FleetShipInstance[]) => setModuleModalInstances(instances)}
               />
             ))}
           </div>
@@ -336,7 +332,7 @@ export default function FleetBuilderPage() {
             ownedModuleIds={ownedModuleIds}
             showOwnedOnly={showOwnedOnly}
             onClose={() => setModuleModalInstances(undefined)}
-            onSetModule={(instId, cat, modId) => setModule(instId, cat, modId, allShips)}
+            onSetModule={(instId, cat, modId, ships) => setModule(instId, cat, modId, ships)}
           />
         </div>
       )}
