@@ -37,8 +37,34 @@ a {
   @apply dark:hover:bg-neutral-700;
 }
 
-.fo-skeleton {
-  @apply dark:bg-neutral-800;
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db; /* neutral-300 */
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.dark ::webkit-scrollbar-thumb {
+  background: #404040; /* neutral-700 */
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af; /* neutral-400 */
+  background-clip: content-box;
+}
+
+.dark ::webkit-scrollbar-thumb:hover {
+  background: #525252; /* neutral-600 */
 }
 
 /* Subsystem card attribute tooltips: show inline on touch devices */

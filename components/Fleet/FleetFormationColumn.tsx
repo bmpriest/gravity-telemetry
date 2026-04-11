@@ -12,18 +12,19 @@ interface Props {
   instances: FleetShipInstance[];
   ships: AllShip[];
   carrierLoads: Record<string, FleetShipInstance[]>;
+  moduleConfig: Record<string, Record<string, number>>;
   onDrop: (data: { shipId: number; variant: string }) => void;
   onMoveShips: (data: { instanceIds: string[]; sourceRow: string }) => void;
   onAddShip: (ship: AllShip) => void;
   onRemoveOne: (instanceId: string) => void;
-  onCarrier: (instances: FleetShipInstance[]) => void;
+  onModules: (instances: FleetShipInstance[]) => void;
 }
 
 const borderColors: Record<string, string> = {
-  back: "border-blue-200 bg-blue-50/30 dark:border-blue-900/60 dark:bg-blue-950/20",
-  middle: "border-yellow-200 bg-yellow-50/30 dark:border-yellow-900/60 dark:bg-yellow-950/20",
-  front: "border-red-200 bg-red-50/30 dark:border-red-900/60 dark:bg-red-950/20",
-  reinforcements: "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900/60 dark:bg-emerald-950/20",
+  back: "border-blue-200 bg-blue-100/50 dark:border-blue-900/60 dark:bg-blue-950/40",
+  middle: "border-yellow-200 bg-yellow-100/50 dark:border-yellow-900/60 dark:bg-yellow-950/40",
+  front: "border-red-200 bg-red-100/50 dark:border-red-900/60 dark:bg-red-950/40",
+  reinforcements: "border-emerald-200 bg-emerald-100/50 dark:border-emerald-900/60 dark:bg-emerald-950/40",
 };
 
 const dragOverColors: Record<string, string> = {
@@ -33,7 +34,7 @@ const dragOverColors: Record<string, string> = {
   reinforcements: "ring-2 ring-emerald-400 dark:ring-emerald-500",
 };
 
-export default function FleetFormationColumn({ row, label, description, instances, ships, carrierLoads, onDrop, onMoveShips, onAddShip, onRemoveOne, onCarrier }: Props) {
+export default function FleetFormationColumn({ row, label, description, instances, ships, carrierLoads, moduleConfig, onDrop, onMoveShips, onAddShip, onRemoveOne, onModules }: Props) {
   const [isDragOver, setIsDragOver] = useState(false);
 
   const stacks = useMemo<ShipStack[]>(() => {
@@ -91,9 +92,10 @@ export default function FleetFormationColumn({ row, label, description, instance
               stack={stack}
               row={row}
               carrierLoads={carrierLoads}
+              moduleConfig={moduleConfig}
               onIncrement={() => onAddShip(stack.ship)}
               onDecrement={() => onRemoveOne(stack.instances[stack.instances.length - 1].id)}
-              onCarrier={() => onCarrier(stack.instances)}
+              onModules={() => onModules(stack.instances)}
             />
           ))}
         </div>

@@ -20,6 +20,8 @@ export interface Fleet {
   };
   /** Maps carrier instance ID → array of loaded fighter/corvette instances */
   carrierLoads: Record<string, FleetShipInstance[]>;
+  /** Maps ship instance ID → mapping of module slot (e.g. "M", "A") to module ID */
+  moduleConfig: Record<string, Record<string, number>>;
 }
 
 export interface CarrierCapacity {
@@ -55,7 +57,8 @@ export function createEmptyFleet(): Fleet {
     name: "New Fleet",
     maxCommandPoints: 400,
     rows: { front: [], middle: [], back: [], reinforcements: [] },
-    carrierLoads: {}
+    carrierLoads: {},
+    moduleConfig: {}
   };
 }
 
@@ -67,7 +70,7 @@ export function createFleetInstance(ship: AllShip): FleetShipInstance {
   };
 }
 
-export function getCarrierCapacity(ship: AllShip): CarrierCapacity[] {
+export function getCarrierCapacity(ship: AllShip, activeModuleIds?: number[]): CarrierCapacity[] {
   const capacities: CarrierCapacity[] = [];
 
   if ("mediumFighterCapacity" in ship) {
@@ -86,6 +89,13 @@ export function getCarrierCapacity(ship: AllShip): CarrierCapacity[] {
   if ("modules" in ship) {
     for (const mod of ship.modules) {
       if (mod.type === "unknown") continue;
+      
+      if (activeModuleIds) {
+        if (!activeModuleIds.includes(mod.id)) continue;
+      } else {
+        if (!mod.default) continue;
+      }
+      
       if (!("subsystems" in mod)) continue;
       for (const sub of mod.subsystems) {
         if (sub.type !== "hanger") continue;
@@ -115,6 +125,99 @@ export function getCarriableType(ship: AllShip): CarrierCapacity["type"] | null 
     return "Corvette";
   }
   return null;
+}
+
+export function canHangarHoldAircraft(hangarType: CarrierCapacity["type"], aircraftType: CarrierCapacity["type"]): boolean {
+  if (hangarType === aircraftType) return true;
+  if (hangarType === "Large Fighter") {
+    return aircraftType === "Medium Fighter" || aircraftType === "Small Fighter";
+  }
+  if (hangarType === "Medium Fighter") {
+    return aircraftType === "Small Fighter";
+  }
+  return false;
+}
+
+export interface HangarAssignment {
+  hangarType: CarrierCapacity["type"];
+  capacity: number;
+  ships: AllShip[];
+  instances: FleetShipInstance[];
+}
+
+export function getHangarAssignments(capacities: CarrierCapacity[], loadedInstances: FleetShipInstance[], allShips: AllShip[]): HangarAssignment[] {
+  const assignments: HangarAssignment[] = capacities.map(c => ({
+    hangarType: c.type,
+    capacity: c.capacity,
+    ships: [],
+    instances: []
+  }));
+
+  // Sort aircraft by size (Smallest to Largest) to fill smallest slots first
+  const aircraft = loadedInstances.map(inst => {
+    const ship = allShips.find(s => s.id === inst.shipId && s.variant === inst.variant);
+    return { inst, ship, type: ship ? getCarriableType(ship) : null };
+  }).filter((a): a is { inst: FleetShipInstance; ship: AllShip; type: CarrierCapacity["type"] } => a.type !== null);
+
+  const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
+  aircraft.sort((a, b) => order[a.type] - order[b.type]);
+
+  for (const item of aircraft) {
+    const compatibleAssignments = assignments
+      .filter(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, item.type))
+      .sort((a, b) => order[a.hangarType] - order[b.hangarType]);
+    
+    if (compatibleAssignments[0]) {
+      compatibleAssignments[0].ships.push(item.ship);
+      compatibleAssignments[0].instances.push(item.inst);
+    }
+  }
+
+  return assignments;
+}
+
+export function getFleetAircraftStats(fleet: Fleet, ships: AllShip[]) {
+  let totalFighterCapacity = 0;
+  let totalCorvetteCapacity = 0;
+  let currentFighters = 0;
+  let currentCorvettes = 0;
+
+  // Calculate total capacity from all ships in the fleet rows
+  const allRowInstances = [...fleet.rows.front, ...fleet.rows.middle, ...fleet.rows.back, ...fleet.rows.reinforcements];
+  
+  for (const instance of allRowInstances) {
+    const ship = ships.find((s) => s.id === instance.shipId && s.variant === instance.variant);
+    if (!ship) continue;
+
+    const activeModuleIds = fleet.moduleConfig?.[instance.id] ? Object.values(fleet.moduleConfig[instance.id]) : undefined;
+    const capacities = getCarrierCapacity(ship, activeModuleIds);
+    for (const cap of capacities) {
+      if (cap.type === "Corvette") {
+        totalCorvetteCapacity += cap.capacity;
+      } else {
+        totalFighterCapacity += cap.capacity;
+      }
+    }
+  }
+
+  // Calculate current loads
+  for (const loads of Object.values(fleet.carrierLoads)) {
+    for (const instance of loads) {
+      const ship = ships.find((s) => s.id === instance.shipId && s.variant === instance.variant);
+      if (!ship) continue;
+
+      if (ship.type === "Corvette") {
+        currentCorvettes++;
+      } else if (ship.type === "Fighter") {
+        currentFighters++;
+      }
+    }
+  }
+
+  return {
+    fighters: { current: currentFighters, total: totalFighterCapacity },
+    corvettes: { current: currentCorvettes, total: totalCorvetteCapacity },
+  };
 }
 
 export function getShipClassIcon(type: string): string {

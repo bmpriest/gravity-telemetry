@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { AllShip } from "@/utils/ships";
+import type { AllShip, AllModule } from "@/utils/ships";
 import type { FleetShipInstance, FleetRow } from "@/utils/fleet";
-import { getShipClassIcon, isCarrierCapable, shipTypeColors } from "@/utils/fleet";
+import { getShipClassIcon, shipTypeColors } from "@/utils/fleet";
 
 export interface ShipStack {
   shipId: number;
@@ -17,12 +17,25 @@ interface Props {
   stack: ShipStack;
   row: FleetRow;
   carrierLoads: Record<string, FleetShipInstance[]>;
+  moduleConfig: Record<string, Record<string, number>>;
   onIncrement: () => void;
   onDecrement: () => void;
-  onCarrier: () => void;
+  onModules: () => void;
 }
 
-export default function FleetFormationStack({ stack, row, carrierLoads, onIncrement, onDecrement, onCarrier }: Props) {
+const slotColors: Record<string, string> = {
+  M: "bg-red-600",
+  A: "bg-blue-600",
+  B: "bg-purple-600",
+  C: "bg-green-600",
+  D: "bg-orange-600",
+  E: "bg-yellow-600",
+  F: "bg-pink-600",
+  G: "bg-indigo-600",
+  H: "bg-gray-600",
+};
+
+export default function FleetFormationStack({ stack, row, carrierLoads, moduleConfig, onIncrement, onDecrement, onModules }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   function onDragStart(event: React.DragEvent) {
@@ -42,9 +55,58 @@ export default function FleetFormationStack({ stack, row, carrierLoads, onIncrem
   }
 
   const canAdd = stack.count < stack.ship.serviceLimit;
-  const hasCarrierCapacity = isCarrierCapable(stack.ship);
-  const loadedCount = stack.instances.reduce((total, inst) => total + (carrierLoads[inst.id]?.length ?? 0), 0);
+  const hasModules = "modules" in stack.ship && stack.ship.modules && stack.ship.modules.length > 0;
   const typeColor = shipTypeColors[stack.ship.type] ?? "transparent";
+
+  // Gather active module systems to display
+  let activeModuleBadges = null;
+  if (hasModules && stack.instances.length > 0) {
+    if (stack.instances.length === 1) {
+      const config = moduleConfig[stack.instances[0].id] || {};
+      const shipModules = (stack.ship as any).modules as AllModule[];
+      
+      // Slot logic: for every slot the ship has, find which module is active
+      const slots = Array.from(new Set(shipModules.map(m => m.system.charAt(0)))).sort((a, b) => {
+        if (a === "M") return -1;
+        if (b === "M") return 1;
+        return a.localeCompare(b);
+      });
+      const activeModules = slots.map(slot => {
+        if (config[slot] !== undefined) {
+          return shipModules.find(m => m.id === config[slot]);
+        }
+        return shipModules.find(m => m.system.startsWith(slot) && m.default);
+      }).filter((m): m is AllModule => !!m);
+      
+      if (activeModules.length > 0) {
+        activeModuleBadges = (
+          <div className="flex flex-wrap gap-1 mt-1 justify-center">
+            {activeModules.map((mod) => {
+              const slot = mod.system.charAt(0);
+              const colorClass = slotColors[slot] || "bg-neutral-600";
+              return (
+                <span key={mod.id} className={`px-1 text-[0.55rem] font-bold text-white rounded ${colorClass}`} title={("name" in mod ? mod.name : mod.system)}>
+                  {mod.system}
+                </span>
+              );
+            })}
+          </div>
+        );
+      }
+    } else {
+      // Multiple instances: Check if any have configurations override
+      const configuredCount = stack.instances.filter(inst => Object.keys(moduleConfig[inst.id] || {}).length > 0).length;
+      if (configuredCount > 0) {
+        activeModuleBadges = (
+          <div className="flex flex-wrap gap-1 mt-1 justify-center">
+            <span className="px-1 text-[0.55rem] font-bold text-white bg-blue-600 rounded">
+              {configuredCount} Configured
+            </span>
+          </div>
+        );
+      }
+    }
+  }
 
   return (
     <div
@@ -63,11 +125,14 @@ export default function FleetFormationStack({ stack, row, carrierLoads, onIncrem
 
       <img className="mx-auto h-10 object-contain" src={stack.ship.img} alt={stack.ship.name} loading="lazy" />
 
-      <p className="text-[0.6rem] text-neutral-500 dark:text-neutral-400">
-        {stack.ship.variantName}{stack.ship.hasVariants && ` (${stack.ship.variant})`}
-      </p>
+      <div className="text-center">
+        <p className="text-[0.6rem] text-neutral-500 dark:text-neutral-400">
+          {stack.ship.variantName}{stack.ship.hasVariants && ` (${stack.ship.variant})`}
+        </p>
+        {activeModuleBadges}
+      </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-1">
         <div className="flex items-center gap-1">
           <button
             className="flex size-5 items-center justify-center rounded bg-neutral-200 text-xs font-bold text-black transition hover:bg-neutral-300 dark:bg-neutral-700 dark:text-white dark:hover:bg-neutral-600"
@@ -95,13 +160,13 @@ export default function FleetFormationStack({ stack, row, carrierLoads, onIncrem
         </span>
       </div>
 
-      {hasCarrierCapacity && (
+      {hasModules && (
         <button
-          className="w-full rounded-lg border border-blue-300 bg-blue-100 px-2 py-0.5 text-[0.6rem] font-medium text-blue-800 transition hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+          className="w-full mt-1 rounded-lg border border-purple-300 bg-purple-100 px-2 py-0.5 text-[0.6rem] font-medium text-purple-800 transition hover:bg-purple-200 dark:border-purple-700 dark:bg-purple-900 dark:text-purple-200 dark:hover:bg-purple-800"
           type="button"
-          onClick={onCarrier}
+          onClick={onModules}
         >
-          Aircraft{loadedCount > 0 ? ` (${loadedCount})` : ""}
+          Modules
         </button>
       )}
     </div>

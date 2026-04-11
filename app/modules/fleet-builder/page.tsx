@@ -5,13 +5,15 @@ import FleetSidebar from "@/components/Fleet/FleetSidebar";
 import FleetToolbar from "@/components/Fleet/FleetToolbar";
 import FleetFormationColumn from "@/components/Fleet/FleetFormationColumn";
 import FleetCarrierModal from "@/components/Fleet/FleetCarrierModal";
+import FleetModuleModal from "@/components/Fleet/FleetModuleModal";
 import FleetSavedFleets from "@/components/Fleet/FleetSavedFleets";
+import FleetAircraftSection from "@/components/Fleet/FleetAircraftSection";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
 import { useBlueprintStore } from "@/stores/blueprintStore";
 import type { AllShip } from "@/utils/ships";
 import type { FleetShipInstance, FleetRow } from "@/utils/fleet";
-import { getCarriableType } from "@/utils/fleet";
+import { getCarriableType, getCarrierCapacity } from "@/utils/fleet";
 
 const columns: { row: FleetRow; label: string; description: string }[] = [
   { row: "back", label: "Back Row", description: "Support & ranged" },
@@ -38,6 +40,18 @@ export default function FleetBuilderPage() {
     return set.size > 0 ? set : null;
   }, [blueprintAccounts]);
 
+  const ownedModuleIds = useMemo<Set<number> | null>(() => {
+    const account = blueprintAccounts[0];
+    if (!account) return null;
+    const set = new Set<number>();
+    for (const shipEntry of account.ships) {
+      for (const mod of shipEntry.modules) {
+        if (mod.unlocked) set.add(mod.moduleId);
+      }
+    }
+    return set.size > 0 ? set : null;
+  }, [blueprintAccounts]);
+
   const fleet = useFleetStore((s) => s.fleet);
   const savedFleets = useFleetStore((s) => s.savedFleets);
   const addShip = useFleetStore((s) => s.addShip);
@@ -45,6 +59,7 @@ export default function FleetBuilderPage() {
   const moveShips = useFleetStore((s) => s.moveShips);
   const loadOntoCarrier = useFleetStore((s) => s.loadOntoCarrier);
   const unloadFromCarrier = useFleetStore((s) => s.unloadFromCarrier);
+  const setModule = useFleetStore((s) => s.setModule);
   const saveFleet = useFleetStore((s) => s.saveFleet);
   const loadFleet = useFleetStore((s) => s.loadFleet);
   const deleteFleet = useFleetStore((s) => s.deleteFleet);
@@ -61,6 +76,7 @@ export default function FleetBuilderPage() {
   const [filterType, setFilterType] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [carrierModalInstances, setCarrierModalInstances] = useState<FleetShipInstance[]>();
+  const [moduleModalInstances, setModuleModalInstances] = useState<FleetShipInstance[]>();
   const [notice, setNotice] = useState("");
   const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -107,33 +123,28 @@ export default function FleetBuilderPage() {
     return ships;
   }, [allShips, showOwnedOnly, ownedShipIds]);
 
-  interface AircraftEntry { key: string; ship: AllShip; count: number; }
-  const aircraftSummary = useMemo<AircraftEntry[]>(() => {
-    const allCarried = Object.values(fleet.carrierLoads).flat();
-    const map = new Map<string, AircraftEntry>();
-    for (const inst of allCarried) {
-      const key = `${inst.shipId}-${inst.variant}`;
-      const ship = allShips.find((s) => s.id === inst.shipId && s.variant === inst.variant);
-      if (!ship) continue;
-      const existing = map.get(key);
-      if (existing) existing.count++;
-      else map.set(key, { key, ship, count: 1 });
-    }
-    return Array.from(map.values());
-  }, [fleet.carrierLoads, allShips]);
-
-  const totalAircraftCP = aircraftSummary.reduce((sum, e) => sum + e.count * e.ship.commandPoints, 0);
-
   const carrierModalLoads = useMemo(() => {
     if (!carrierModalInstances) return [];
     return carrierModalInstances.flatMap((inst) => fleet.carrierLoads[inst.id] ?? []);
   }, [carrierModalInstances, fleet.carrierLoads]);
 
   function handleAddShip(ship: AllShip) {
-    if (getCarriableType(ship) !== null) {
-      showNotice('Fighters and corvettes must be loaded onto a carrier. Click "Aircraft" on a carrier ship.');
+    const carriableType = getCarriableType(ship);
+    if (carriableType !== null) {
+      // Try to find an available carrier for this aircraft
+      const allRowInstances = getAllRowInstances();
+      for (const inst of allRowInstances) {
+        const error = loadOntoCarrier(inst.id, ship, allShips);
+        if (!error) {
+          const carrierShip = allShips.find((s) => s.id === inst.shipId && s.variant === inst.variant);
+          showNotice(`Added ${ship.name} to ${carrierShip?.name}.`);
+          return;
+        }
+      }
+      showNotice(`No available carrier slots for ${ship.name}.`);
       return;
     }
+    
     if (getShipCount(ship.id, ship.variant) >= ship.serviceLimit) {
       showNotice(`Service limit reached for ${ship.name} (${ship.serviceLimit}).`);
       return;
@@ -145,10 +156,14 @@ export default function FleetBuilderPage() {
   function handleDrop(data: { shipId: number; variant: string }, targetRow: FleetRow) {
     const ship = allShips.find((s) => s.id === data.shipId && s.variant === data.variant);
     if (!ship) return;
-    if (getCarriableType(ship) !== null) {
-      showNotice('Fighters and corvettes must be loaded onto a carrier. Click "Aircraft" on a carrier ship.');
+    
+    const carriableType = getCarriableType(ship);
+    if (carriableType !== null) {
+      // For drops, we also try to auto-assign
+      handleAddShip(ship);
       return;
     }
+
     if (getShipCount(ship.id, ship.variant) >= ship.serviceLimit) {
       showNotice(`Service limit reached for ${ship.name} (${ship.serviceLimit}).`);
       return;
@@ -244,7 +259,7 @@ export default function FleetBuilderPage() {
             onToggleSaved={() => setShowSavedFleets(true)}
           />
 
-          <div className="flex gap-3 overflow-x-auto lg:gap-4">
+          <div className="flex gap-3 overflow-x-auto lg:gap-4 pb-2">
             {columns.map((col) => (
               <FleetFormationColumn
                 key={col.row}
@@ -254,39 +269,25 @@ export default function FleetBuilderPage() {
                 instances={fleet.rows[col.row]}
                 ships={allShips}
                 carrierLoads={fleet.carrierLoads}
+                moduleConfig={fleet.moduleConfig || {}}
                 onDrop={(data) => handleDrop(data, col.row)}
                 onMoveShips={(data) => handleMoveShips(data, col.row)}
                 onAddShip={(ship) => addShip(ship, col.row)}
                 onRemoveOne={(id) => removeShip(id)}
-                onCarrier={(instances) => setCarrierModalInstances(instances)}
+                onModules={(instances) => setModuleModalInstances(instances)}
               />
             ))}
           </div>
 
-          {aircraftSummary.length > 0 && (
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4 transition duration-500 dark:border-neutral-700 dark:bg-neutral-900">
-              <h3 className="mb-2 text-left text-sm font-bold text-black dark:text-white">Loaded Aircraft</h3>
-              <div className="flex flex-wrap gap-2">
-                {aircraftSummary.map((entry) => (
-                  <div
-                    key={entry.key}
-                    className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 transition dark:border-neutral-700 dark:bg-neutral-800"
-                  >
-                    <img className="h-6 object-contain" src={entry.ship.img} alt={entry.ship.name} />
-                    <span className="text-xs text-black dark:text-white">{entry.ship.name}</span>
-                    {entry.ship.hasVariants && (
-                      <span className="text-[0.6rem] text-neutral-400 dark:text-neutral-500">({entry.ship.variant})</span>
-                    )}
-                    <span className="rounded-full bg-blue-100 px-1.5 text-[0.6rem] font-semibold text-blue-800 dark:bg-blue-900 dark:text-blue-200">x{entry.count}</span>
-                    <span className="text-[0.6rem] text-neutral-400 dark:text-neutral-500">{entry.count * entry.ship.commandPoints} CP</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-2 text-right text-[0.65rem] text-neutral-500 dark:text-neutral-400">
-                {totalAircraftCP} CP in aircraft
-              </p>
-            </div>
-          )}
+          <FleetAircraftSection
+            fleet={fleet}
+            ships={allShips}
+            onLoad={(carrierId, ship) => {
+              const error = loadOntoCarrier(carrierId, ship, allShips);
+              if (error) showNotice(error);
+            }}
+            onUnload={unloadFromCarrier}
+          />
         </div>
       </div>
 
@@ -319,6 +320,23 @@ export default function FleetBuilderPage() {
             onClose={() => setCarrierModalInstances(undefined)}
             onLoad={handleLoadOntoCarrier}
             onUnload={handleUnloadFromCarrier}
+          />
+        </div>
+      )}
+
+      {moduleModalInstances && (
+        <div
+          className="fixed left-0 top-0 z-20 flex h-dvh w-screen items-center justify-center bg-[rgba(0,0,0,0.5)]"
+          onClick={() => setModuleModalInstances(undefined)}
+        >
+          <FleetModuleModal
+            instances={moduleModalInstances}
+            ships={allShips}
+            moduleConfig={fleet.moduleConfig || {}}
+            ownedModuleIds={ownedModuleIds}
+            showOwnedOnly={showOwnedOnly}
+            onClose={() => setModuleModalInstances(undefined)}
+            onSetModule={(instId, cat, modId) => setModule(instId, cat, modId, allShips)}
           />
         </div>
       )}

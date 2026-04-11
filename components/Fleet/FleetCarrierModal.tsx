@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import type { AllShip } from "@/utils/ships";
 import type { FleetShipInstance, CarrierCapacity } from "@/utils/fleet";
-import { getCarrierCapacity, getCarriableType, getShipClassIcon } from "@/utils/fleet";
+import { getCarrierCapacity, getCarriableType, getShipClassIcon, canHangarHoldAircraft, getHangarAssignments } from "@/utils/fleet";
 
 interface Props {
   carrierInstances: FleetShipInstance[];
@@ -32,34 +32,25 @@ export default function FleetCarrierModal({ carrierInstances, currentLoads, ship
 
   const capacity = useMemo(() => carrierShip ? getCarrierCapacity(carrierShip) : [], [carrierShip]);
 
-  const capacitySlots = useMemo(() =>
-    capacity.map((slot) => ({
-      ...slot,
-      capacity: slot.capacity * stackCount,
-      current: currentLoads.filter((load) => {
-        const ship = ships.find((s) => s.id === load.shipId && s.variant === load.variant);
-        return ship && getCarriableType(ship) === slot.type;
-      }).length,
-    })),
-  [capacity, stackCount, currentLoads, ships]);
+  const assignments = useMemo(() => {
+    // Total capacity for the stack
+    const totalCapacities = capacity.map(c => ({ ...c, capacity: c.capacity * stackCount }));
+    return getHangarAssignments(totalCapacities, currentLoads, ships);
+  }, [capacity, stackCount, currentLoads, ships]);
 
   const availableShips = useMemo(() =>
     availableShipsPool.filter((ship) => {
       const carriableType = getCarriableType(ship);
       if (!carriableType) return false;
-      return capacity.some((slot) => slot.type === carriableType);
+      return capacity.some((slot) => canHangarHoldAircraft(slot.type, carriableType));
     }),
   [availableShipsPool, capacity]);
-
-  function resolveShip(instance: FleetShipInstance): AllShip | undefined {
-    return ships.find((s) => s.id === instance.shipId && s.variant === instance.variant);
-  }
 
   function canLoad(ship: AllShip): boolean {
     const carriableType = getCarriableType(ship);
     if (!carriableType) return false;
-    const slot = capacitySlots.find((s) => s.type === carriableType);
-    if (!slot || slot.current >= slot.capacity) return false;
+    const canFit = assignments.some(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, carriableType));
+    if (!canFit) return false;
     if (getShipFleetCount(ship) >= ship.serviceLimit) return false;
     return true;
   }
@@ -89,17 +80,17 @@ export default function FleetCarrierModal({ carrierInstances, currentLoads, ship
       </div>
 
       <div className="mb-4 flex flex-wrap gap-3">
-        {capacitySlots.map((slot) => (
+        {assignments.map((asgn) => (
           <div
-            key={slot.type}
+            key={asgn.hangarType}
             className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition duration-500 ${
-              slot.current >= slot.capacity
+              asgn.ships.length >= asgn.capacity
                 ? "border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950"
                 : "border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
             }`}
           >
-            <img className="size-4 select-none opacity-60 transition duration-500 dark:invert" src={getSlotIcon(slot.type)} alt={slot.type} />
-            <span className="text-sm font-medium transition duration-500">{slot.type}: {slot.current}/{slot.capacity}</span>
+            <img className="size-4 select-none opacity-60 transition duration-500 dark:invert" src={getSlotIcon(asgn.hangarType)} alt={asgn.hangarType} />
+            <span className="text-sm font-medium transition duration-500">{asgn.hangarType}: {asgn.ships.length}/{asgn.capacity}</span>
           </div>
         ))}
       </div>
@@ -108,19 +99,22 @@ export default function FleetCarrierModal({ carrierInstances, currentLoads, ship
         <div className="mb-4">
           <h4 className="mb-2 text-left text-sm font-semibold transition duration-500">Loaded Aircraft</h4>
           <div className="flex flex-wrap gap-2">
-            {currentLoads.map((load) => {
-              const loadedShip = resolveShip(load);
+            {assignments.flatMap(asgn => asgn.instances.map((load, idx) => {
+              const loadedShip = asgn.ships[idx];
               return (
                 <div
                   key={load.id}
                   className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-1.5 transition duration-500 dark:border-neutral-700 dark:bg-neutral-800"
                 >
-                  {loadedShip && <img className="h-8 object-contain" src={loadedShip.img} alt={loadedShip.name} />}
-                  <span className="text-sm transition duration-500">{loadedShip?.name} ({loadedShip?.variant})</span>
-                  <button className="text-red-500 transition hover:text-red-700" type="button" onClick={() => onUnload(load.id)}>&times;</button>
+                  <img className="h-8 object-contain" src={loadedShip.img} alt={loadedShip.name} />
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold transition duration-500">{loadedShip.name}</span>
+                    <span className="text-[0.6rem] text-neutral-500">{asgn.hangarType}</span>
+                  </div>
+                  <button className="text-red-500 transition hover:text-red-700 ml-1 font-bold" type="button" onClick={() => onUnload(load.id)}>&times;</button>
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
       )}

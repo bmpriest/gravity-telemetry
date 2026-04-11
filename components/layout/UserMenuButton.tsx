@@ -133,7 +133,7 @@ export default function UserMenuButton() {
               aria-hidden="true"
             >
               <span
-                className={`absolute top-0.5 inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? "translate-x+4" : "translate-x-0.5"}`}
+                className={`absolute top-0.5 inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? "-translate-x-4" : "translate-x-0"}`}
               />
             </span>
           </button>

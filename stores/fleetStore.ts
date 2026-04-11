@@ -1,8 +1,8 @@
 import { create } from "zustand";
 import { subscribeWithSelector } from "zustand/middleware";
 import type { AllShip } from "@/utils/ships";
-import type { Fleet, FleetRow } from "@/utils/fleet";
-import { createEmptyFleet, createFleetInstance, getCarrierCapacity, getCarriableType } from "@/utils/fleet";
+import type { Fleet, FleetRow, FleetShipInstance } from "@/utils/fleet";
+import { createEmptyFleet, createFleetInstance, getCarrierCapacity, getCarriableType, canHangarHoldAircraft } from "@/utils/fleet";
 
 const STORAGE_KEY = "fleetBuilderSavedFleets";
 const CURRENT_FLEET_KEY = "fleetBuilderCurrentFleet";
@@ -15,7 +15,7 @@ interface FleetState {
   /** True when the fleet store has loaded saved fleets from the server (logged in) */
   syncedWithServer: boolean;
 
-  // Derived selectors (computed equivalents — use these in components)
+  // Derived selectors
   getAllRowInstances: () => FleetShipInstance[];
   getAllCarriedInstances: () => FleetShipInstance[];
   getAllInstances: () => FleetShipInstance[];
@@ -30,24 +30,20 @@ interface FleetState {
   moveShips: (instanceIds: string[], toRow: FleetRow) => void;
   loadOntoCarrier: (carrierInstanceId: string, ship: AllShip, ships: AllShip[]) => string | null;
   unloadFromCarrier: (carrierInstanceId: string, instanceId: string) => void;
+  setModule: (instanceId: string, category: string, moduleId: number, ships: AllShip[]) => void;
   saveFleet: () => Promise<void>;
+
   loadFleet: (fleetId: string) => void;
   deleteFleet: (fleetId: string) => Promise<void>;
   newFleet: () => void;
   loadFromStorage: () => void;
 
-  // Server sync — when the user logs in, push every locally-saved fleet to
-  // their account (if it doesn't already exist there) and then mirror the
-  // server state into the store. When the user logs out, drop the synced
-  // marker so future writes go back to localStorage.
   syncWithServer: () => Promise<void>;
   fetchFromServer: () => Promise<void>;
   resetSync: () => void;
 }
 
-// Re-export for convenience
 export type { FleetRow };
-import type { FleetShipInstance } from "@/utils/fleet";
 
 export const useFleetStore = create<FleetState>()(
   subscribeWithSelector((set, get) => ({
@@ -108,7 +104,11 @@ export const useFleetStore = create<FleetState>()(
             rows[row] = rows[row].filter((i) => i.id !== instanceId);
             const carrierLoads = { ...state.fleet.carrierLoads };
             delete carrierLoads[instanceId];
-            return { fleet: { ...state.fleet, rows, carrierLoads } };
+            
+            const moduleConfig = { ...state.fleet.moduleConfig };
+            if (moduleConfig[instanceId]) delete moduleConfig[instanceId];
+
+            return { fleet: { ...state.fleet, rows, carrierLoads, moduleConfig } };
           }
         }
         return state;
@@ -146,16 +146,29 @@ export const useFleetStore = create<FleetState>()(
       const carriableType = getCarriableType(ship);
       if (!carriableType) return "This ship cannot be loaded onto a carrier.";
 
-      const capacity = getCarrierCapacity(carrierShip);
-      const slot = capacity.find((c) => c.type === carriableType);
-      if (!slot) return `This carrier cannot hold ${carriableType}s.`;
-
+      const activeModuleIds = get().fleet.moduleConfig?.[carrierInstanceId] ? Object.values(get().fleet.moduleConfig[carrierInstanceId]) : undefined;
+      const capacities = getCarrierCapacity(carrierShip, activeModuleIds);
       const currentLoads = get().fleet.carrierLoads[carrierInstanceId] ?? [];
-      const currentOfType = currentLoads.filter((i) => {
-        const loadedShip = ships.find((s) => s.id === i.shipId && s.variant === i.variant);
-        return loadedShip && getCarriableType(loadedShip) === carriableType;
-      });
-      if (currentOfType.length >= slot.capacity) return `Carrier is full for ${carriableType}s (${slot.capacity}/${slot.capacity}).`;
+
+      const allAircraftTypes = currentLoads.map(inst => {
+        const s = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
+        return s ? getCarriableType(s) : null;
+      }).filter((t): t is NonNullable<typeof t> => t !== null);
+
+      allAircraftTypes.push(carriableType);
+
+      const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
+      allAircraftTypes.sort((a, b) => order[a] - order[b]);
+
+      const tempCapacities = capacities.map(c => ({ ...c }));
+      for (const airType of allAircraftTypes) {
+        const fitSlot = tempCapacities
+          .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, airType))
+          .sort((a, b) => order[a.type] - order[b.type])[0];
+        
+        if (!fitSlot) return `Carrier is full for ${carriableType}s.`;
+        fitSlot.capacity--;
+      }
 
       const instance = createFleetInstance(ship);
       set((state) => ({
@@ -182,13 +195,74 @@ export const useFleetStore = create<FleetState>()(
       });
     },
 
+    setModule(instanceId, category, moduleId, ships) {
+      set((state) => {
+        const currentConfig = state.fleet.moduleConfig?.[instanceId] || {};
+        const newConfig = { ...currentConfig };
+        
+        // Toggle logic: if clicking the already selected module, remove it
+        if (newConfig[category] === moduleId) {
+          delete newConfig[category];
+        } else {
+          newConfig[category] = moduleId;
+        }
+
+        const updatedModuleConfig = {
+          ...(state.fleet.moduleConfig || {}),
+          [instanceId]: newConfig,
+        };
+
+        // If changing modules reduced aircraft capacity, we must unload invalid aircraft
+        const carrierInstance = get().getAllRowInstances().find(i => i.id === instanceId);
+        const carrierShip = carrierInstance ? ships.find(s => s.id === carrierInstance.shipId && s.variant === carrierInstance.variant) : null;
+        
+        let updatedCarrierLoads = { ...state.fleet.carrierLoads };
+        if (carrierShip && updatedCarrierLoads[instanceId]) {
+          const activeModuleIds = Object.values(newConfig);
+          const capacities = getCarrierCapacity(carrierShip, activeModuleIds);
+          const currentLoads = updatedCarrierLoads[instanceId];
+          
+          const aircraft = currentLoads.map(inst => {
+            const ship = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
+            return { inst, type: ship ? getCarriableType(ship) : null };
+          }).filter((a): a is { inst: FleetShipInstance; type: string } => a.type !== null);
+
+          const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
+          aircraft.sort((a, b) => order[a.type] - order[b.type]);
+
+          const tempCapacities = capacities.map(c => ({ ...c }));
+          const validInstances: FleetShipInstance[] = [];
+          
+          for (const item of aircraft) {
+            const fitSlot = tempCapacities
+              .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type as any))
+              .sort((a, b) => order[a.type] - order[b.type])[0];
+            
+            if (fitSlot) {
+              fitSlot.capacity--;
+              validInstances.push(item.inst);
+            }
+          }
+          
+          if (validInstances.length === 0) delete updatedCarrierLoads[instanceId];
+          else updatedCarrierLoads[instanceId] = validInstances;
+        }
+
+        return {
+          fleet: {
+            ...state.fleet,
+            moduleConfig: updatedModuleConfig,
+            carrierLoads: updatedCarrierLoads,
+          },
+        };
+      });
+    },
+
     async saveFleet() {
       const state = get();
       const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
 
       if (state.syncedWithServer) {
-        // Logged in: persist to the server. We still update local state
-        // optimistically so the UI feels instant.
         const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
         const savedFleets =
           existing !== -1
@@ -211,13 +285,14 @@ export const useFleetStore = create<FleetState>()(
         return;
       }
 
-      // Logged out: localStorage only.
       const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
       const savedFleets =
         existing !== -1
           ? state.savedFleets.map((f, i) => (i === existing ? copy : f))
           : [...state.savedFleets, copy];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+      }
       set({ savedFleets });
     },
 
@@ -243,7 +318,9 @@ export const useFleetStore = create<FleetState>()(
         return;
       }
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+      if (typeof window !== "undefined") {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+      }
     },
 
     newFleet() {
@@ -251,6 +328,7 @@ export const useFleetStore = create<FleetState>()(
     },
 
     loadFromStorage() {
+      if (typeof window === "undefined") return;
       try {
         const savedRaw = localStorage.getItem(STORAGE_KEY);
         const currentRaw = localStorage.getItem(CURRENT_FLEET_KEY);
@@ -258,13 +336,20 @@ export const useFleetStore = create<FleetState>()(
         let savedFleets: Fleet[] = savedRaw ? (JSON.parse(savedRaw) as Fleet[]) : [];
         let fleet: Fleet = currentRaw ? (JSON.parse(currentRaw) as Fleet) : createEmptyFleet();
 
-        // Migrate: ensure reinforcements row exists
-        if (!fleet.rows.reinforcements) fleet = { ...fleet, rows: { ...fleet.rows, reinforcements: [] } };
-        savedFleets = savedFleets.map((f) => (!f.rows.reinforcements ? { ...f, rows: { ...f.rows, reinforcements: [] } } : f));
+        // Migration/Sanitization
+        const sanitize = (f: Fleet) => {
+          if (!f.rows.reinforcements) f.rows.reinforcements = [];
+          if (!f.moduleConfig) f.moduleConfig = {};
+          if (!f.carrierLoads) f.carrierLoads = {};
+          return f;
+        };
+
+        fleet = sanitize(fleet);
+        savedFleets = savedFleets.map(sanitize);
 
         set({ fleet, savedFleets });
       } catch {
-        // Invalid data in localStorage
+        // Invalid data
       }
     },
 
@@ -279,9 +364,6 @@ export const useFleetStore = create<FleetState>()(
     },
 
     async syncWithServer() {
-      // Push every locally-saved fleet whose id doesn't already exist on the
-      // server. We then re-fetch so the store mirrors the server's view of
-      // the world (server is now the source of truth for this user).
       try {
         const initial = await fetch("/api/fleets", { credentials: "same-origin" });
         const initialBody = await initial.json();
@@ -299,7 +381,6 @@ export const useFleetStore = create<FleetState>()(
           });
         }
 
-        // Re-fetch and clear localStorage; logged-in lifecycle owns these now.
         const final = await fetch("/api/fleets", { credentials: "same-origin" });
         const { success, data } = await final.json();
         if (success && Array.isArray(data)) {
@@ -313,20 +394,17 @@ export const useFleetStore = create<FleetState>()(
 
     resetSync() {
       set({ syncedWithServer: false, savedFleets: [] });
-      // Re-hydrate any localStorage fleets that may still be there from before
-      // login (we removed them after a successful sync, but a fresh anonymous
-      // session may have written new ones).
       get().loadFromStorage();
     },
   }))
 );
 
 // Persist current fleet to localStorage whenever it changes
-useFleetStore.subscribe(
-  (state) => state.fleet,
-  (fleet) => {
-    if (typeof window !== "undefined") {
+if (typeof window !== "undefined") {
+  useFleetStore.subscribe(
+    (state) => state.fleet,
+    (fleet) => {
       localStorage.setItem(CURRENT_FLEET_KEY, JSON.stringify(fleet));
     }
-  }
-);
+  );
+}

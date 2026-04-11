@@ -207,11 +207,12 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
   }
 
   const isFighter = values.type === "Fighter";
+  const isCorvette = values.type === "Corvette";
   const isSupercap = SUPERCAP_TYPES.has(values.type);
   // Carriers and aux ships still have hanger capacity at the *ship* level for
   // anything not represented as a subsystem yet, so the capacity rows stay
   // available for everything that isn't a Fighter or Corvette.
-  const canCarrySomething = !isFighter && values.type !== "Corvette";
+  const canCarrySomething = !(isFighter || isCorvette);
   const fallbackImg = `/ships/classes/${values.type.toLowerCase()}.svg`;
 
   return (
@@ -274,7 +275,7 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
               <button
                 type="button"
                 onClick={() => { setAddingManufacturer(true); setNewManufacturerName(""); setAddingManufacturerError(""); }}
-                className="fo-btn shrink-0 rounded-lg border-blue-300 bg-blue-100 px-3 py-2 text-xs font-medium hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+                className="fo-btn shrink-0 rounded-lg border-blue-300 bg-blue-100 px-3 py-2 text-xs font-medium text-black hover:text-white dark:text-white hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
               >
                 + Add new
               </button>
@@ -378,14 +379,14 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
           <button
             type="button"
             onClick={onCancel}
-            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
+            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm text-black hover:text-white dark:text-white dark:border-neutral-600 dark:bg-neutral-700"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
+            className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium text-black hover:text-white disabled:opacity-50 dark:text-white dark:border-blue-500 dark:bg-blue-800"
           >
             {loading ? "Saving…" : ship ? "Save changes" : "Create ship"}
           </button>
