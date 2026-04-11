@@ -48,58 +48,72 @@ export default function AppSidebar({ onContributors, onChangelog, onContact, onC
       onClick={(e) => e.stopPropagation()}
     >
       <div className="flex h-full w-full flex-col items-center justify-between overflow-y-auto bg-neutral-50 px-3 py-4 transition duration-500 dark:bg-neutral-900">
-        <ul className="w-full space-y-2 font-medium">
-          {navButtons.map((button) => (
-            <li key={button.displayName}>
-              {button.disabled ? (
-                <div className="group flex w-full select-none items-center rounded-lg bg-neutral-200 p-2 text-neutral-900 transition duration-500 dark:bg-neutral-700">
-                  <img className="size-6 select-none transition duration-500 hover:duration-300 dark:invert" src={button.src} alt={`Go to ${button.altName ?? button.displayName}`} />
-                  <span className={`ms-3 transition duration-500 ${button.tag ? "flex-1 whitespace-nowrap text-left" : ""}`}>{button.displayName}</span>
-                  {button.tag && (
-                    <span className={`ms-3 inline-flex items-center justify-center rounded-full px-2 text-sm font-medium text-neutral-800 ${button.tag.color}`}>{button.tag.name}</span>
-                  )}
+        <div className="w-full">
+          {/* Logo block — moved here from the centered slot in AppHeader so the
+              top bar's vertical space goes to page content instead of branding. */}
+          <Link href="/home" onClick={onClose} className="mb-4 flex w-full items-center justify-center py-2">
+            <img
+              className="h-10 select-none transition duration-500 dark:invert"
+              src="/logo/gravityAssist.svg"
+              alt="Gravity Assist"
+            />
+          </Link>
+
+          <ul className="w-full space-y-2 font-medium">
+            {navButtons.map((button) => (
+              <li key={button.displayName}>
+                {button.disabled ? (
+                  <div className="group flex w-full select-none items-center rounded-lg bg-neutral-200 p-2 text-neutral-900 transition duration-500 dark:bg-neutral-700">
+                    <img className="size-6 select-none transition duration-500 hover:duration-300 dark:invert" src={button.src} alt={`Go to ${button.altName ?? button.displayName}`} />
+                    <span className={`ms-3 transition duration-500 ${button.tag ? "flex-1 whitespace-nowrap text-left" : ""}`}>{button.displayName}</span>
+                    {button.tag && (
+                      <span className={`ms-3 inline-flex items-center justify-center rounded-full px-2 text-sm font-medium text-neutral-800 ${button.tag.color}`}>{button.tag.name}</span>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href={button.route}
+                    className={`group flex items-center rounded-lg p-2 text-neutral-900 transition duration-500 hover:bg-neutral-200/50 hover:duration-150 dark:hover:bg-neutral-800 ${pathname.includes(button.route) ? "bg-neutral-200/50 dark:bg-neutral-800" : ""}`}
+                    onClick={onClose}
+                  >
+                    <img
+                      className={`size-6 select-none transition duration-500 hover:duration-300 group-hover:scale-110 dark:invert ${pathname.includes(button.route) ? "scale-110" : ""}`}
+                      src={button.src}
+                      alt={`Go to ${button.altName ?? button.displayName}`}
+                    />
+                    <span className={`ms-3 text-left transition duration-500 ${button.tag ? "flex-1 whitespace-nowrap" : ""} ${pathname.includes(button.route) ? "font-bold" : ""}`}>
+                      {button.displayName}
+                    </span>
+                    {button.tag && (
+                      <span className={`ms-3 inline-flex items-center justify-center rounded-full px-2 text-sm font-medium text-neutral-800 ${button.tag.color}`}>{button.tag.name}</span>
+                    )}
+                  </Link>
+                )}
+              </li>
+            ))}
+
+            {alert?.show && (
+              <div className="mt-6 rounded-lg bg-blue-50 p-4 transition duration-500 dark:bg-blue-900" role="alert">
+                <div className="mb-3 flex items-center">
+                  <span className="me-2 rounded bg-orange-100 px-2.5 py-0.5 text-sm font-semibold text-orange-800 transition duration-500 dark:bg-orange-200 dark:text-orange-900">{alert.tag}</span>
+                  <button
+                    type="button"
+                    className="-mx-1.5 -my-1.5 ms-auto inline-flex h-6 w-6 items-center justify-center rounded-lg p-0.5 transition duration-500 hover:bg-blue-200 dark:hover:bg-blue-800"
+                    aria-label="Close"
+                    onClick={closeAlert}
+                  >
+                    <img className="size-6 select-none transition duration-500 dark:invert" src="/ui/close.svg" aria-hidden="true" />
+                  </button>
                 </div>
-              ) : (
-                <Link
-                  href={button.route}
-                  className={`group flex items-center rounded-lg p-2 text-neutral-900 transition duration-500 hover:bg-neutral-200/50 hover:duration-150 dark:hover:bg-neutral-800 ${pathname.includes(button.route) ? "bg-neutral-200/50 dark:bg-neutral-800" : ""}`}
-                  onClick={onClose}
-                >
-                  <img
-                    className={`size-6 select-none transition duration-500 hover:duration-300 group-hover:scale-110 dark:invert ${pathname.includes(button.route) ? "scale-110" : ""}`}
-                    src={button.src}
-                    alt={`Go to ${button.altName ?? button.displayName}`}
-                  />
-                  <span className={`ms-3 text-left transition duration-500 ${button.tag ? "flex-1 whitespace-nowrap" : ""} ${pathname.includes(button.route) ? "font-bold" : ""}`}>
-                    {button.displayName}
-                  </span>
-                  {button.tag && (
-                    <span className={`ms-3 inline-flex items-center justify-center rounded-full px-2 text-sm font-medium text-neutral-800 ${button.tag.color}`}>{button.tag.name}</span>
-                  )}
-                </Link>
-              )}
-            </li>
-          ))}
-
-          {alert?.show && (
-            <div className="mt-6 rounded-lg bg-blue-50 p-4 transition duration-500 dark:bg-blue-900" role="alert">
-              <div className="mb-3 flex items-center">
-                <span className="me-2 rounded bg-orange-100 px-2.5 py-0.5 text-sm font-semibold text-orange-800 transition duration-500 dark:bg-orange-200 dark:text-orange-900">{alert.tag}</span>
-                <button
-                  type="button"
-                  className="-mx-1.5 -my-1.5 ms-auto inline-flex h-6 w-6 items-center justify-center rounded-lg p-0.5 transition duration-500 hover:bg-blue-200 dark:hover:bg-blue-800"
-                  aria-label="Close"
-                  onClick={closeAlert}
-                >
-                  <img className="size-6 select-none transition duration-500 dark:invert" src="/ui/close.svg" aria-hidden="true" />
-                </button>
+                <p className="mb-3 text-left text-sm text-blue-800 transition duration-500 dark:text-blue-200">{alert.description}</p>
+                <p className="text-left text-xs text-blue-900 transition duration-500 dark:text-blue-300">{formatDate(alert.date, "numeric")}</p>
               </div>
-              <p className="mb-3 text-left text-sm text-blue-800 transition duration-500 dark:text-blue-200">{alert.description}</p>
-              <p className="text-left text-xs text-blue-900 transition duration-500 dark:text-blue-300">{formatDate(alert.date, "numeric")}</p>
-            </div>
-          )}
-        </ul>
+            )}
+          </ul>
+        </div>
 
+        {/* Auth panel removed — username, admin link, theme toggle, and log out
+            now live in the always-visible UserMenuButton dropdown in AppHeader. */}
         <div className="flex w-full items-center justify-center font-medium">
           <div className="du-tooltip" data-tip="Contributors">
             <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={onContributors}>

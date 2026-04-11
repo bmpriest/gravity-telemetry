@@ -9,10 +9,14 @@ import MailTemplates from "@/components/Mail/MailTemplates";
 import MailButtonClear from "@/components/Mail/Buttons/Clear";
 import MailButtonCopy from "@/components/Mail/Buttons/Copy";
 import MailButtonSave from "@/components/Mail/Buttons/Save";
-import MailButtonShare from "@/components/Mail/Buttons/Share";
+import { useUserStore } from "@/stores/userStore";
+import { useMailStore } from "@/stores/mailStore";
 
 export default function MailEditPage() {
   const searchParams = useSearchParams();
+  const user = useUserStore((s) => s.user);
+  const authChecked = useUserStore((s) => s.authChecked);
+  const getMailFromStore = useMailStore((s) => s.getMail);
 
   const [isClearText, setIsClearText] = useState(false);
   const [savedMail, setSavedMail] = useState<SaveTemplate>();
@@ -22,7 +26,6 @@ export default function MailEditPage() {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showShareDialog, setShowShareDialog] = useState(false);
   const [showMailTemplates, setShowMailTemplates] = useState(false);
   const [selectedMailTemplate, setSelectedMailTemplate] = useState<Op[]>();
 
@@ -42,26 +45,25 @@ export default function MailEditPage() {
     return () => clearTimeout(t);
   }, [selectedMailTemplate]);
 
-  async function getMail(uid?: string, id?: string) {
-    const userQuery = uid ?? searchParams.get("u");
-    const idQuery = id ?? searchParams.get("id");
-    if (!userQuery || !idQuery) return;
+  async function loadMail(id: string) {
     setLoading(true);
-    const res = await fetch("/api/mail/get", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid: userQuery, mailId: idQuery }),
-    });
-    const { success, error, content } = await res.json();
+    const content = await getMailFromStore(id);
     setLoading(false);
-    if (!success && error) { console.error(error); return; }
-    if (success && content) {
-      setSelectedMailTemplate(content.ops);
-      setSavedMail(content);
-    }
+    if (!content) return;
+    setSelectedMailTemplate(content.ops);
+    setSavedMail(content);
   }
 
-  useEffect(() => { void getMail(); }, []);
+  // Resolve the mail referenced by ?id= once auth has settled (the store
+  // routes anonymous fetches to a login error from the API, so we wait until
+  // we know whether the user is signed in).
+  useEffect(() => {
+    if (!authChecked || !user) return;
+    const id = searchParams.get("id");
+    if (!id) return;
+    void loadMail(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, user]);
 
   const dialogButtons: Record<string, (v: boolean) => void> = {
     clear: setShowClearDialog,
@@ -108,8 +110,7 @@ export default function MailEditPage() {
       <div className="flex items-center justify-center gap-5">
         <MailButtonClear showDialog={showClearDialog} onToggleDialog={(v) => { setShowClearDialog(v); deselectOthers("clear"); }} onClearText={triggerClear} />
         <MailButtonCopy showDialog={showCopyDialog} outputText={outputText} onToggleDialog={setShowCopyDialog} />
-        <MailButtonSave showDialog={showSaveDialog} outputOps={outputOps} savedMail={savedMail} onToggleDialog={(v) => { setShowSaveDialog(v); deselectOthers("save"); }} onNewQuery={(uid, id) => void getMail(uid, id)} />
-        <MailButtonShare showDialog={showShareDialog} savedMail={savedMail} onToggleDialog={setShowShareDialog} />
+        <MailButtonSave showDialog={showSaveDialog} outputOps={outputOps} savedMail={savedMail} onToggleDialog={(v) => { setShowSaveDialog(v); deselectOthers("save"); }} onNewQuery={(id) => void loadMail(id)} />
       </div>
 
       <div className="mt-4 hidden items-center justify-center gap-1 rounded-lg bg-neutral-50 p-4 text-sm text-neutral-800 transition duration-500 [.touch_&]:flex dark:bg-neutral-800 dark:text-neutral-200" role="alert">

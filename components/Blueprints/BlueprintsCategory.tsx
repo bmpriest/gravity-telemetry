@@ -3,7 +3,6 @@
 import { useState } from "react";
 import BlueprintsCard from "./BlueprintsCard";
 import type { BlueprintAllShip, BlueprintSuperCapitalShip } from "@/utils/blueprints";
-import { useUserStore } from "@/stores/userStore";
 
 interface Props {
   shipType: string;
@@ -17,6 +16,7 @@ interface Props {
   onUnassignedTpChange: (tp: number) => void;
   onModules: (ship: BlueprintSuperCapitalShip) => void;
   onDataChange: () => void;
+  onMarkUnsaved: () => void;
 }
 
 export default function BlueprintsCategory({
@@ -31,8 +31,8 @@ export default function BlueprintsCategory({
   onUnassignedTpChange,
   onModules,
   onDataChange,
+  onMarkUnsaved,
 }: Props) {
-  const setHasUnsavedChanges = useUserStore((s) => s.setHasUnsavedChanges);
   const [showTPModal, setShowTPModal] = useState(false);
 
   const typeShips = displayedData?.filter((ship) => ship.type === shipType) ?? [];
@@ -40,7 +40,7 @@ export default function BlueprintsCategory({
 
   function handleTp(targetShip: BlueprintAllShip, tp: number) {
     if (!data) return;
-    setHasUnsavedChanges(true);
+    onMarkUnsaved();
 
     targetShip.techPoints = tp;
     if (!targetShip.hasVariants || !targetShip.mirrorTechPoints) {
@@ -57,7 +57,7 @@ export default function BlueprintsCategory({
 
   function toggleMirror(targetShip: BlueprintAllShip) {
     if (!targetShip.hasVariants || !data) return;
-    setHasUnsavedChanges(true);
+    onMarkUnsaved();
 
     const newValue = !targetShip.mirrorTechPoints;
     targetShip.mirrorTechPoints = newValue;
@@ -158,7 +158,7 @@ export default function BlueprintsCategory({
             onTp={(tp) => handleTp(ship, tp)}
             onMirror={() => toggleMirror(ship)}
             onModules={(s) => onModules(s)}
-            onChange={() => { setHasUnsavedChanges(true); onDataChange(); }}
+            onChange={() => { onMarkUnsaved(); onDataChange(); }}
           />
         ))}
       </div>

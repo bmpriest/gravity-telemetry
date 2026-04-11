@@ -1,0 +1,31 @@
+# Files that should never be sent to the Docker build context. Keeping this
+# list tight makes the COPY in the Dockerfile faster and prevents host-only
+# state (node_modules, .next, .env) from leaking into the image.
+
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+.vscode
+.idea
+
+# Build outputs / caches
+dist
+out
+coverage
+*.log
+*.tsbuildinfo
+.DS_Store
+
+# Local Prisma scratch
+prisma/prisma/dev.db
+prisma/prisma/dev.db-journal
+
+# Docker bookkeeping (we COPY the Dockerfile via the build context, but the
+# compose file and ignore file itself don't need to ship inside the image).
+docker-compose.yml
+.dockerignore
+README*.md

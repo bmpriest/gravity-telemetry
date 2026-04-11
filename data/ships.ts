@@ -1,5 +1,13 @@
-import type { AllShip } from "@/utils/ships";
+/**
+ * Legacy seed source — only consumed by `prisma/seed.ts`. The dead `direction`,
+ * `scope`, `weight`, and `difficulty` fields are intentionally kept in the
+ * literals so this file remains a verbatim historical snapshot, but the export
+ * is typed loosely (the seed reads it via `as any`) so the dead fields don't
+ * have to satisfy `AllShip` after the schema cleanup.
+ */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LegacyShip = any;
 
 export const difficulty: Readonly<Record<string, number>> = {
     "Jupiter Industry": 3.5,
@@ -14,7 +22,7 @@ export const difficulty: Readonly<Record<string, number>> = {
     "Direct-Fire Weapon": 4
   };
 
-export const data: readonly AllShip[] = [
+export const data: readonly LegacyShip[] = [
     {
       id: 0,
       name: "AT021",

@@ -1,6 +1,14 @@
-import { NextResponse } from "next/server";
-import { data, difficulty } from "@/data/ships";
+import prisma from "@/lib/prisma";
+import { handle } from "@/lib/api";
+import { mapShips, shipInclude } from "@/lib/shipMapper";
 
 export async function GET() {
-  return NextResponse.json({ data, difficulty });
+  return handle(async () => {
+    const ships = await prisma.ship.findMany({
+      include: shipInclude,
+      orderBy: { id: "asc" },
+    });
+    // The legacy `difficulty` field has been removed — see plan, Phase 1.
+    return { data: mapShips(ships) };
+  });
 }

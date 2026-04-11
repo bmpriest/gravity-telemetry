@@ -22,7 +22,7 @@ export default function ModuleLibraryPage() {
   const mParam = searchParams.get("m");
 
   useEffect(() => {
-    if (!shipData) init(false);
+    if (!shipData) init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

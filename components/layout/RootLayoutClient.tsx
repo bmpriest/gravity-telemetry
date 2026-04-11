@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
@@ -8,7 +8,11 @@ import AppFooter from "./AppFooter";
 import HomeContributors from "@/components/Home/Contributors";
 import HomeChangelog from "@/components/Home/Changelog";
 import HomeContact from "@/components/Home/Contact";
+import MustChangePasswordGate from "@/components/MustChangePasswordGate";
 import { useUserStore } from "@/stores/userStore";
+import { useFleetStore } from "@/stores/fleetStore";
+import { useBlueprintStore } from "@/stores/blueprintStore";
+import { useMailStore } from "@/stores/mailStore";
 import { changelog } from "@/utils/changelog";
 
 interface Props {
@@ -20,7 +24,8 @@ export default function RootLayoutClient({ children }: Props) {
   const searchParams = useSearchParams();
 
   const init = useUserStore((s) => s.init);
-  const getUser = useUserStore((s) => s.getUser);
+  const user = useUserStore((s) => s.user);
+  const authChecked = useUserStore((s) => s.authChecked);
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [showContributors, setShowContributors] = useState(false);
@@ -69,32 +74,41 @@ export default function RootLayoutClient({ children }: Props) {
 
   // App init
   useEffect(() => {
-    // Restore dark mode before first paint (also handled by inline script in layout.tsx)
-    if (localStorage.getItem("theme") === "dark") {
-      useUserStore.getState().setIsDarkMode(true);
-      document.body.classList.add("dark");
-    }
+    // Theme hydration is owned entirely by the inline script in app/layout.tsx
+    // (which sets the class on <html> before React paints) and by
+    // userStore.init() (which mirrors that into the store). Touching the body
+    // class here would create a second source of truth and was the cause of
+    // the broken moon/sun toggle in the previous build.
 
-    const uid = localStorage.getItem("uid");
-    const token = localStorage.getItem("token");
-    const hasQuery = window.location.search.length > 0;
-    const isTemporaryUser = (!uid || !token) && hasQuery;
+    // Anonymous-mode persistence — both stores hydrate from localStorage so
+    // logged-out users still see their work between sessions. The effect below
+    // swaps either store to the server-backed view once auth is resolved.
+    useFleetStore.getState().loadFromStorage();
+    useBlueprintStore.getState().loadFromStorage();
 
-    init(!isTemporaryUser);
-
-    if (isTemporaryUser) {
-      // Once query params are cleared, create user
-      const handler = () => {
-        if (window.location.search.length === 0) {
-          window.removeEventListener("popstate", handler);
-          void getUser(true);
-        }
-      };
-      window.addEventListener("popstate", handler);
-      return () => window.removeEventListener("popstate", handler);
-    }
+    init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Once auth has been resolved, decide whether to push the local data to the
+  // server (logged in) or stay in localStorage mode (logged out). Both fleets
+  // and blueprints follow the same anonymous-then-merge lifecycle; mail is
+  // logged-in only so it just fetches when there's a user.
+  useEffect(() => {
+    if (!authChecked) return;
+    const fleetStore = useFleetStore.getState();
+    const blueprintStore = useBlueprintStore.getState();
+    const mailStore = useMailStore.getState();
+    if (user) {
+      if (!fleetStore.syncedWithServer) void fleetStore.syncWithServer();
+      if (!blueprintStore.syncedWithServer) void blueprintStore.syncWithServer();
+      if (!mailStore.syncedWithServer) void mailStore.fetchFromServer();
+    } else {
+      if (fleetStore.syncedWithServer) fleetStore.resetSync();
+      if (blueprintStore.syncedWithServer) blueprintStore.resetSync();
+      if (mailStore.syncedWithServer) mailStore.reset();
+    }
+  }, [authChecked, user]);
 
   // Responsive sidebar
   useEffect(() => {
@@ -182,6 +196,10 @@ export default function RootLayoutClient({ children }: Props) {
           <HomeContact />
         </div>
       )}
+
+      {/* Forced-password-change modal — blocks the UI on first login after
+          an admin reset (or on the very first login of a freshly seeded admin). */}
+      {user?.mustChangePassword && <MustChangePasswordGate />}
     </>
   );
 }

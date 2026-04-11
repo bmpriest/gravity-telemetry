@@ -12,6 +12,8 @@ const allRows = ["front", "middle", "back", "reinforcements"] as const;
 interface FleetState {
   fleet: Fleet;
   savedFleets: Fleet[];
+  /** True when the fleet store has loaded saved fleets from the server (logged in) */
+  syncedWithServer: boolean;
 
   // Derived selectors (computed equivalents — use these in components)
   getAllRowInstances: () => FleetShipInstance[];
@@ -28,11 +30,19 @@ interface FleetState {
   moveShips: (instanceIds: string[], toRow: FleetRow) => void;
   loadOntoCarrier: (carrierInstanceId: string, ship: AllShip, ships: AllShip[]) => string | null;
   unloadFromCarrier: (carrierInstanceId: string, instanceId: string) => void;
-  saveFleet: () => void;
+  saveFleet: () => Promise<void>;
   loadFleet: (fleetId: string) => void;
-  deleteFleet: (fleetId: string) => void;
+  deleteFleet: (fleetId: string) => Promise<void>;
   newFleet: () => void;
   loadFromStorage: () => void;
+
+  // Server sync — when the user logs in, push every locally-saved fleet to
+  // their account (if it doesn't already exist there) and then mirror the
+  // server state into the store. When the user logs out, drop the synced
+  // marker so future writes go back to localStorage.
+  syncWithServer: () => Promise<void>;
+  fetchFromServer: () => Promise<void>;
+  resetSync: () => void;
 }
 
 // Re-export for convenience
@@ -43,6 +53,7 @@ export const useFleetStore = create<FleetState>()(
   subscribeWithSelector((set, get) => ({
     fleet: createEmptyFleet(),
     savedFleets: [],
+    syncedWithServer: false,
 
     getAllRowInstances() {
       const { fleet } = get();
@@ -171,17 +182,43 @@ export const useFleetStore = create<FleetState>()(
       });
     },
 
-    saveFleet() {
-      set((state) => {
-        const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
+    async saveFleet() {
+      const state = get();
+      const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
+
+      if (state.syncedWithServer) {
+        // Logged in: persist to the server. We still update local state
+        // optimistically so the UI feels instant.
         const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
         const savedFleets =
           existing !== -1
             ? state.savedFleets.map((f, i) => (i === existing ? copy : f))
             : [...state.savedFleets, copy];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
-        return { savedFleets };
-      });
+        set({ savedFleets });
+
+        try {
+          const res = await fetch("/api/fleets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(copy),
+            credentials: "same-origin",
+          });
+          const { success, data } = await res.json();
+          if (success && Array.isArray(data)) set({ savedFleets: data });
+        } catch (e) {
+          console.error("Failed to save fleet to server", e);
+        }
+        return;
+      }
+
+      // Logged out: localStorage only.
+      const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
+      const savedFleets =
+        existing !== -1
+          ? state.savedFleets.map((f, i) => (i === existing ? copy : f))
+          : [...state.savedFleets, copy];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
+      set({ savedFleets });
     },
 
     loadFleet(fleetId) {
@@ -189,12 +226,24 @@ export const useFleetStore = create<FleetState>()(
       if (saved) set({ fleet: JSON.parse(JSON.stringify(saved)) });
     },
 
-    deleteFleet(fleetId) {
-      set((state) => {
-        const savedFleets = state.savedFleets.filter((f) => f.id !== fleetId);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
-        return { savedFleets };
-      });
+    async deleteFleet(fleetId) {
+      const state = get();
+      const savedFleets = state.savedFleets.filter((f) => f.id !== fleetId);
+      set({ savedFleets });
+
+      if (state.syncedWithServer) {
+        try {
+          await fetch(`/api/fleets/${encodeURIComponent(fleetId)}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+          });
+        } catch (e) {
+          console.error("Failed to delete fleet from server", e);
+        }
+        return;
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedFleets));
     },
 
     newFleet() {
@@ -217,6 +266,57 @@ export const useFleetStore = create<FleetState>()(
       } catch {
         // Invalid data in localStorage
       }
+    },
+
+    async fetchFromServer() {
+      try {
+        const res = await fetch("/api/fleets", { credentials: "same-origin" });
+        const { success, data } = await res.json();
+        if (success && Array.isArray(data)) set({ savedFleets: data, syncedWithServer: true });
+      } catch (e) {
+        console.error("Failed to fetch fleets from server", e);
+      }
+    },
+
+    async syncWithServer() {
+      // Push every locally-saved fleet whose id doesn't already exist on the
+      // server. We then re-fetch so the store mirrors the server's view of
+      // the world (server is now the source of truth for this user).
+      try {
+        const initial = await fetch("/api/fleets", { credentials: "same-origin" });
+        const initialBody = await initial.json();
+        const serverFleets: Fleet[] = (initialBody.success && Array.isArray(initialBody.data) ? initialBody.data : []) as Fleet[];
+        const serverIds = new Set(serverFleets.map((f) => f.id));
+
+        const local = get().savedFleets;
+        const toUpload = local.filter((f) => !serverIds.has(f.id));
+        for (const f of toUpload) {
+          await fetch("/api/fleets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(f),
+            credentials: "same-origin",
+          });
+        }
+
+        // Re-fetch and clear localStorage; logged-in lifecycle owns these now.
+        const final = await fetch("/api/fleets", { credentials: "same-origin" });
+        const { success, data } = await final.json();
+        if (success && Array.isArray(data)) {
+          localStorage.removeItem(STORAGE_KEY);
+          set({ savedFleets: data, syncedWithServer: true });
+        }
+      } catch (e) {
+        console.error("Failed to sync fleets with server", e);
+      }
+    },
+
+    resetSync() {
+      set({ syncedWithServer: false, savedFleets: [] });
+      // Re-hydrate any localStorage fleets that may still be there from before
+      // login (we removed them after a successful sync, but a fresh anonymous
+      // session may have written new ones).
+      get().loadFromStorage();
     },
   }))
 );

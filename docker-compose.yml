@@ -1,0 +1,57 @@
+# ============================================================================
+# Gravity Telemetry — production-ish docker compose
+#
+# Two services:
+#   db   — postgres 16 alpine, persisted to a named volume so data survives
+#          `docker compose down`. Healthchecked via pg_isready.
+#   app  — the Next.js standalone runtime built from ./Dockerfile. Waits for
+#          db to be healthy, applies Prisma migrations, then starts the server.
+#
+# Usage:
+#   1. Copy .env.example → .env and edit SESSION_SECRET / ADMIN_PASSWORD.
+#   2. `docker compose up --build`
+#   3. The app is reachable on http://localhost:3000.
+# ============================================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gravity
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gravity}
+      POSTGRES_DB: gravity_telemetry
+    volumes:
+      - gravity_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "gravity", "-d", "gravity_telemetry"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    # The db port is not exposed to the host by default. Uncomment if you
+    # want to connect Prisma Studio or psql from outside the compose network.
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://gravity:${POSTGRES_PASSWORD:-gravity}@db:5432/gravity_telemetry
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required — see .env.example}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required — see .env.example}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+
+volumes:
+  gravity_pgdata:
+    driver: local

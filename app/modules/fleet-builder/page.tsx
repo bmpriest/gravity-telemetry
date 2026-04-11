@@ -8,6 +8,7 @@ import FleetCarrierModal from "@/components/Fleet/FleetCarrierModal";
 import FleetSavedFleets from "@/components/Fleet/FleetSavedFleets";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
+import { useBlueprintStore } from "@/stores/blueprintStore";
 import type { AllShip } from "@/utils/ships";
 import type { FleetShipInstance, FleetRow } from "@/utils/fleet";
 import { getCarriableType } from "@/utils/fleet";
@@ -21,8 +22,21 @@ const columns: { row: FleetRow; label: string; description: string }[] = [
 
 export default function FleetBuilderPage() {
   const shipData = useUserStore((s) => s.shipData);
-  const blueprintsAutosave = useUserStore((s) => s.blueprintsAutosave);
   const { init } = useUserStore();
+  const blueprintAccounts = useBlueprintStore((s) => s.accounts);
+
+  // Owned-ships filter is keyed off the first blueprint account (matches the
+  // pre-refactor behavior where the autosaved account drove this). The lookup
+  // is a Set of `Ship.id` (the DB PK, which is unique per ship+variant).
+  const ownedShipIds = useMemo<Set<number> | null>(() => {
+    const account = blueprintAccounts[0];
+    if (!account) return null;
+    const set = new Set<number>();
+    for (const entry of account.ships) {
+      if (entry.unlocked) set.add(entry.shipId);
+    }
+    return set.size > 0 ? set : null;
+  }, [blueprintAccounts]);
 
   const fleet = useFleetStore((s) => s.fleet);
   const savedFleets = useFleetStore((s) => s.savedFleets);
@@ -52,7 +66,7 @@ export default function FleetBuilderPage() {
 
   useEffect(() => {
     loadFromStorage();
-    if (!shipData) init(false);
+    if (!shipData) init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function showNotice(msg: string) {
@@ -62,14 +76,13 @@ export default function FleetBuilderPage() {
   }
 
   const allShips = useMemo<AllShip[]>(() => shipData ?? [], [shipData]);
-  const hasBlueprintData = Boolean(blueprintsAutosave);
+  const hasBlueprintData = ownedShipIds !== null;
   const currentCP = getCurrentCP(allShips);
 
   const filteredShips = useMemo(() => {
     let ships = allShips;
-    if (showOwnedOnly && blueprintsAutosave) {
-      const owned = blueprintsAutosave;
-      ships = ships.filter((ship) => owned.some((bp) => bp.id === ship.id && bp.variant === ship.variant && bp.unlocked));
+    if (showOwnedOnly && ownedShipIds) {
+      ships = ships.filter((ship) => ownedShipIds.has(ship.id));
     }
     if (filterType !== "All") {
       ships = ships.filter((ship) => ship.type === filterType);
@@ -84,16 +97,15 @@ export default function FleetBuilderPage() {
       );
     }
     return ships;
-  }, [allShips, showOwnedOnly, blueprintsAutosave, filterType, searchQuery]);
+  }, [allShips, showOwnedOnly, ownedShipIds, filterType, searchQuery]);
 
   const carrierAvailableShips = useMemo(() => {
     let ships = allShips.filter((s) => getCarriableType(s) !== null);
-    if (showOwnedOnly && blueprintsAutosave) {
-      const owned = blueprintsAutosave;
-      ships = ships.filter((ship) => owned.some((bp) => bp.id === ship.id && bp.variant === ship.variant && bp.unlocked));
+    if (showOwnedOnly && ownedShipIds) {
+      ships = ships.filter((ship) => ownedShipIds.has(ship.id));
     }
     return ships;
-  }, [allShips, showOwnedOnly, blueprintsAutosave]);
+  }, [allShips, showOwnedOnly, ownedShipIds]);
 
   interface AircraftEntry { key: string; ship: AllShip; count: number; }
   const aircraftSummary = useMemo<AircraftEntry[]>(() => {

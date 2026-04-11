@@ -1,10 +1,9 @@
-export type ManufacturerOption = "Jupiter Industry" | "NOMA Shipping" | "Antonios" | "Dawn Accord" | "Empty";
-export type DirectionOption = "Outstanding Firepower" | "Sustained Combat" | "Strategy & Support" | "Fighter & Corvette" | "Empty";
-export type ScopeOption = "Direct-Fire Weapon" | "Projectile Weapon" | "Empty";
-
-export const manufacturers: ManufacturerOption[] = ["Jupiter Industry", "Dawn Accord", "Antonios", "NOMA Shipping", "Empty"];
-export const directions: DirectionOption[] = ["Outstanding Firepower", "Sustained Combat", "Strategy & Support", "Fighter & Corvette", "Empty"];
-export const scopes: ScopeOption[] = ["Projectile Weapon", "Direct-Fire Weapon", "Empty"];
+// Manufacturer was a closed string union when manufacturers lived in a Prisma
+// enum. With the move to a Manufacturer table they're admin-editable, so the
+// type is now an open string. The `manufacturers` constant is no longer
+// authoritative — fetch the live list from `/api/admin/manufacturers` (admin)
+// or accept whatever name comes back from `/api/ships`.
+export type ManufacturerOption = string;
 
 export interface Ship {
   id: number;
@@ -26,7 +25,10 @@ export interface Ship {
    */
   img: string;
 
-  variant: "A" | "B" | "C" | "D";
+  /** A-D are normal variants; "H" identifies a Hero variant. The DB column is
+   *  String so the admin form can introduce new variant letters without a
+   *  schema change, but in practice only A-D and H are in use. */
+  variant: "A" | "B" | "C" | "D" | "H";
 
   /** Name of the variant, shown next to the variant letter.
    * @example "Plasma Type"
@@ -36,11 +38,6 @@ export interface Ship {
   /** Whether or not the ship has other variants. */
   hasVariants: boolean;
   manufacturer: ManufacturerOption;
-  direction: DirectionOption[];
-  scope: ScopeOption;
-
-  /** Weight of the ship's draw probability */
-  weight: number;
   row: "Front" | "Middle" | "Back";
   commandPoints: number;
   serviceLimit: number;
@@ -257,6 +254,9 @@ export interface MiscUAVSubsystem extends UAVSubsystem {
 export type ModuleSystemName = "M1" | "M2" | "M3" | "A1" | "A2" | "A3" | "B1" | "B2" | "B3" | "C1" | "C2" | "C3" | "D1" | "D2" | "D3" | "E1" | "E2" | "F1" | "F2" | "G1" | "G2" | "H1" | "H2";
 
 interface Module {
+  /** Database id for the module — used as the foreign key when persisting
+   *  blueprint unlocks against the normalized schema. */
+  id: number;
   /** Image of the weapon type, found in `/public/weapons/icons`. */
   img: string;
   system: ModuleSystemName;
@@ -327,31 +327,38 @@ export function findShip(ships: AllShip[] | undefined, ship: AllShip | undefined
   return ships?.find((s) => s.name.toLowerCase() === name?.toLowerCase() && s.variant.toLowerCase() === variant?.toLowerCase());
 }
 
-export function findBestDirection(data: AllShip[], ship: AllShip) {
-  if (ship.direction.length === 1) {
-    return ship.direction[0];
-  }
-
-  let bestDirection: DirectionOption = "Empty";
-  const allChances: number[] = [];
-
-  for (const direction of ship.direction) {
-    const simulatedPath = data.filter((shipObj) => {
-      const manufacturerCheck = ship.manufacturer === "Empty" || shipObj.manufacturer === ship.manufacturer;
-      const directionCheck = direction === "Empty" || shipObj.direction.includes(direction);
-      const scopeCheck = ship.scope === "Empty" || shipObj.scope === ship.scope;
-
-      return manufacturerCheck && directionCheck && scopeCheck;
-    });
-
-    const chance = (ship.weight / simulatedPath.reduce((acc, item) => acc + item.weight, 0)) * 100;
-    allChances.push(chance);
-  }
-
-  bestDirection = ship.direction[allChances.indexOf(Math.max(...allChances))];
-  return bestDirection;
-}
-
 export function shipNameToImage(name: string) {
   return name.toLowerCase().replaceAll("-", "").replaceAll("'", "").replaceAll(".", "").split(" ").join("_");
+}
+
+/**
+ * Returns the effective image URL for a ship, falling back through:
+ *   1. ship.img if it's a non-empty string
+ *   2. the (name, "A") sibling's img from `siblingsByNameAndVariant`, if any
+ *   3. the generic ship-type icon at /ships/classes/{type}.svg
+ *
+ * The classes/ directory contains pre-existing per-type SVGs (battleship.svg,
+ * carrier.svg, "auxiliary ship.svg", etc.) so the third fallback never 404s
+ * for any ship type the catalogue actually carries.
+ *
+ * `siblingsByNameAndVariant` is an optional lookup keyed as
+ * `${name}::${variantUpper}` so the mapper can pre-build it once per request
+ * rather than scanning the catalogue per ship.
+ */
+export function resolveShipImage(
+  ship: { img: string; name: string; type: string; hasVariants: boolean },
+  siblingsByNameAndVariant?: Map<string, string>,
+): string {
+  if (ship.img && ship.img.length > 0) return ship.img;
+
+  if (ship.hasVariants && siblingsByNameAndVariant) {
+    const aImg = siblingsByNameAndVariant.get(`${ship.name}::A`);
+    if (aImg && aImg.length > 0) return aImg;
+  }
+
+  // The classes/ directory uses lowercase filenames with "auxiliary ship.svg"
+  // for the AuxiliaryShip type — i.e. a literal space in the filename. The
+  // type strings already arrive in display form ("Auxiliary Ship") so a simple
+  // lowercase is enough.
+  return `/ships/classes/${ship.type.toLowerCase()}.svg`;
 }

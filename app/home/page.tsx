@@ -1,18 +1,19 @@
 "use client";
 
-import type { Metadata } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Carousel from "@/components/Home/Carousel";
 import ChangelogItem from "@/components/Home/ChangelogItem";
 import ContributorsItem from "@/components/Home/ContributorsItem";
-import HomeLink from "@/components/Home/HomeLink";
 import Contact from "@/components/Home/Contact";
+import { useUserStore } from "@/stores/userStore";
 import { changelog } from "@/utils/changelog";
 import { credits } from "@/utils/credits";
 
 export default function HomePage() {
   const router = useRouter();
+  const user = useUserStore((s) => s.user);
+  const authChecked = useUserStore((s) => s.authChecked);
 
   return (
     <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-8">
@@ -76,14 +77,42 @@ export default function HomePage() {
       </div>
 
       <div className="mt-16 flex w-[80vw] flex-col items-center justify-center gap-2 md:w-[25rem] lg:w-[40rem]">
-        <h2 id="link-a-device" className="text-3xl font-bold">
-          <Link href="/home#link-a-device" className="transition duration-500">Link A Device</Link>
+        <h2 id="your-account" className="text-3xl font-bold">
+          <Link href="/home#your-account" className="transition duration-500">Your Account</Link>
         </h2>
         <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
-          <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/link.svg" aria-hidden="true" /></span>
+          <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/person.svg" aria-hidden="true" /></span>
         </div>
-        <div className="flex w-[80vw] flex-col gap-2 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
-          <HomeLink />
+        <div className="flex w-[80vw] flex-col gap-3 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
+          {!authChecked ? (
+            <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">Loading…</p>
+          ) : user ? (
+            <p className="text-center text-sm transition duration-500">
+              Signed in as <b>{user.username}</b>. Your fleets, blueprints, and mails are saved to your account and follow you across devices.
+            </p>
+          ) : (
+            <>
+              <p className="text-center text-sm transition duration-500">
+                Create an account to save your fleets, blueprints, and mails on the server. They&apos;ll follow you across every device and browser you sign in from.
+              </p>
+              <div className="flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => router.push("/login")}
+                  className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 font-medium hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+                >
+                  Log in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/register")}
+                  className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                >
+                  Register
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

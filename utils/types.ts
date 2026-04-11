@@ -4,50 +4,23 @@ export type SaveTemplate = {
   id: string;
   name: string;
   ops: Op[];
-  /** YYYY-MM-DD */
+  /** ISO timestamp */
   lastSaved: string;
-  /** YYYY-MM-DD */
+  /** ISO timestamp */
   createdAt: string;
 };
 
-export type UserData = {
-  uid: string;
-  accessToken: string;
-  /** YYYY-MM-DD */
-  createdAt: string;
-  /** YYYY-MM-DD */
-  lastLoggedIn: string;
-  savedMails: SaveTemplate[];
-  blueprints: Record<string, Record<string, (string | number)[]>[]>[];
-  /** YYYY-MM-DD */
-  bpLastSaved: string | null;
-  origin: string;
-};
-
-export type MinifiedSaveTemplate = {
+/**
+ * Authenticated user. Returned by /api/auth/me, /api/auth/login, etc.
+ *
+ * Replaces the legacy `UserData` shape which had savedMails / blueprints
+ * embedded — those now live in dedicated stores backed by their own endpoints.
+ */
+export type SessionUser = {
   id: string;
-  name: string;
-  ops: {
-    a?: { c: string };
-    i: string;
-  }[];
-  /** YYYY-MM-DD */
-  lastSaved: string;
-  /** YYYY-MM-DD */
-  createdAt: string;
-};
-
-export type MinifiedUserData = {
-  uid: string;
-  accessToken: string;
-  /** YYYY-MM-DD */
-  createdAt: string;
-  /** YYYY-MM-DD */
-  lastLoggedIn: string;
-  savedMails: MinifiedSaveTemplate[];
-  blueprints: Record<string, Record<string, (string | number)[]>[]>[];
-  /** YYYY-MM-DD */
-  bpLastSaved: string | null;
+  username: string;
+  role: "USER" | "ADMIN";
+  mustChangePassword: boolean;
 };
 
 export type Alert = {

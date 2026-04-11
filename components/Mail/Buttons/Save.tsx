@@ -1,71 +1,58 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { Op } from "quill";
 import type { SaveTemplate } from "@/utils/types";
 import { useUserStore } from "@/stores/userStore";
-import { delay } from "@/utils/functions";
+import { useMailStore } from "@/stores/mailStore";
 
 interface Props {
   showDialog: boolean;
   outputOps: Op[];
   savedMail: SaveTemplate | undefined;
   onToggleDialog: (val: boolean) => void;
-  onNewQuery: (uid: string, id: string) => void;
+  onNewQuery: (id: string) => void;
 }
 
 export default function MailButtonSave({ showDialog, outputOps, savedMail, onToggleDialog, onNewQuery }: Props) {
   const user = useUserStore((s) => s.user);
-  const setUser = useUserStore((s) => s.setUser);
+  const saveMail = useMailStore((s) => s.saveMail);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const userQuery = searchParams.get("u");
 
   const [templateName, setTemplateName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const isOwn = !userQuery || userQuery === user?.uid;
-  const placeholder = `Name your ${isOwn ? "new mail" : "clone"}!`;
+  // Pre-fill the input from the loaded mail (if any) so saving without
+  // edits acts as an in-place update.
+  useEffect(() => {
+    if (savedMail) setTemplateName(savedMail.name.slice(0, 50));
+  }, [savedMail]);
 
-  async function getOwnership() {
-    let tries = 0;
-    while (tries < 10) {
-      const ownership = isOwn ? "" : "Clone of ";
-      if (savedMail) setTemplateName((ownership + savedMail.name).slice(0, 100));
-      tries++;
-      await delay(50);
-    }
-  }
-
-  useEffect(() => { void getOwnership(); }, [savedMail, user]);
   useEffect(() => { setError(""); }, [templateName]);
   useEffect(() => {
-    if (!showDialog) { setTemplateName(""); setError(""); }
-  }, [showDialog]);
+    if (!showDialog) { setTemplateName(savedMail?.name ?? ""); setError(""); }
+  }, [showDialog, savedMail]);
 
   async function saveText() {
     if (!showDialog || !user || !templateName || error) return;
     setLoading(true);
-    const res = await fetch("/api/mail/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ uid: user.uid, accessToken: user.accessToken, template: { name: templateName, ops: outputOps } }),
-    });
-    const { success: ok, error: err, content, outcomeMails } = await res.json();
+    const result = await saveMail({ name: templateName, ops: outputOps });
     setLoading(false);
-    if (!ok && err) { setError(err); return; }
-    if (ok && content && outcomeMails) {
+    if (!result.ok) {
+      setError(result.error ?? "Save failed.");
+      return;
+    }
+    if (result.saved) {
       setSuccess(true);
-      setUser({ ...user, savedMails: outcomeMails });
       setTimeout(() => { setSuccess(false); onToggleDialog(false); }, 1000);
       const params = new URLSearchParams(searchParams.toString());
-      params.set("u", user.uid);
-      params.set("id", content.id);
+      params.set("id", result.saved.id);
       router.replace(`?${params.toString()}`);
-      onNewQuery(user.uid, content.id);
+      onNewQuery(result.saved.id);
     }
   }
 
@@ -76,7 +63,7 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
         className={`du-btn flex select-none items-center justify-center gap-2 rounded-xl border-blue-300 bg-blue-100 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:hover:bg-blue-700 ${showDialog ? "scale-105 border-blue-400 bg-blue-200 dark:bg-blue-700" : "dark:bg-blue-800"}`}
         onClick={() => onToggleDialog(!showDialog)}
       >
-        <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">{isOwn ? "Save" : "Clone"}</span>
+        <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">Save</span>
         <img className="size-5 transition duration-500 dark:invert" src="/ui/save.svg" aria-hidden="true" />
       </button>
       {showDialog && (
@@ -88,7 +75,7 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
                   <span className={`fo-label-text-alt transition duration-500 ${error ? "text-red-700 dark:text-red-200" : ""}`}>{templateName.length}/50</span>
                 </span>
                 <div className="relative">
-                  <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} type="text" placeholder={placeholder} className={`fo-input border-neutral-300 bg-white text-black ${error ? "text-red-700" : ""}`} maxLength={100} />
+                  <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} type="text" placeholder="Name your mail!" className={`fo-input border-neutral-300 bg-white text-black ${error ? "text-red-700" : ""}`} maxLength={50} />
                 </div>
                 <span className="fo-label">
                   <span className="fo-label-text-alt text-red-700 transition duration-500 dark:text-red-200">{error}</span>
@@ -102,14 +89,16 @@ export default function MailButtonSave({ showDialog, outputOps, savedMail, onTog
                 >
                   {loading && <span className="du-loading du-loading-spinner du-loading-md transition duration-500 group-hover:text-white group-hover:duration-200 dark:group-hover:text-black" />}
                   <span className={`text-black transition duration-500 group-hover:text-white group-hover:duration-200 dark:text-white dark:group-hover:text-black ${!templateName ? "text-white dark:text-black" : ""}`}>
-                    {isOwn ? (loading ? "Saving..." : success ? "Saved!" : "Save") : (loading ? "Cloning..." : success ? "Cloned!" : "Clone")}
+                    {loading ? "Saving..." : success ? "Saved!" : "Save"}
                   </span>
                 </button>
               </div>
             </div>
           ) : (
             <div className="fo-tooltip-body flex w-64 flex-col items-center justify-center gap-3 rounded-lg border-2 border-blue-300 bg-blue-100 p-4 text-start shadow transition duration-500 dark:border-blue-500 dark:bg-blue-800">
-              <p className="text-center text-lg font-medium text-black transition duration-500 dark:text-white">Something went wrong. Please try again later.</p>
+              <p className="text-center text-lg font-medium text-black transition duration-500 dark:text-white">
+                Log in to save mails to your account.
+              </p>
             </div>
           )}
         </div>

@@ -153,22 +153,3 @@ export function untruncateOps(ops: TruncatedOp[]) {
   });
 }
 
-/**
- * Returns the key of the first entry in the given object.
- *
- * @param object the object to get the key from
- * @param index the index of the key to return, defaults to 0
- */
-export function getObjectKey<T extends object>(object: T, index = 0) {
-  return Object.keys(object)[index];
-}
-
-/**
- * Returns the value of the first entry in the given object.
- *
- * @param object the object to get the value from
- * @param index the index of the value to return, defaults to 0
- */
-export function getObjectValue<T extends object>(object: T, index = 0) {
-  return Object.values(object)[index];
-}
