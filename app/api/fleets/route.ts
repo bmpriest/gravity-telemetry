@@ -19,7 +19,7 @@ interface ShipInstanceDto { id: string; shipId: number; variant: string }
 interface FleetDto {
   id: string;
   name: string;
-  maxCommandPoints?: number;
+  maxCommandPoints: number;
   rows: {
     front: ShipInstanceDto[];
     middle: ShipInstanceDto[];
@@ -27,6 +27,7 @@ interface FleetDto {
     reinforcements: ShipInstanceDto[];
   };
   carrierLoads: Record<string, ShipInstanceDto[]>;
+  moduleConfig: Record<string, Record<string, number>>;
 }
 
 type DbRow = "Front" | "Middle" | "Back";
@@ -92,7 +93,7 @@ function fleetToInstances(fleetId: string, fleet: FleetDto) {
 }
 
 function instancesToFleet(
-  fleetRow: { id: string; name: string },
+  fleetRow: { id: string; name: string; maxCommandPoints: number; moduleConfig: string | null },
   instances: DbInstance[],
 ): FleetDto {
   const rows: FleetDto["rows"] = { front: [], middle: [], back: [], reinforcements: [] };
@@ -109,12 +110,22 @@ function instancesToFleet(
     else rows.back.push(dto);
   }
 
+  let moduleConfig: Record<string, Record<string, number>> = {};
+  if (fleetRow.moduleConfig) {
+    try {
+      moduleConfig = JSON.parse(fleetRow.moduleConfig);
+    } catch {
+      // invalid config
+    }
+  }
+
   return {
     id: fleetRow.id,
     name: fleetRow.name,
-    maxCommandPoints: 400,
+    maxCommandPoints: fleetRow.maxCommandPoints,
     rows,
     carrierLoads,
+    moduleConfig,
   };
 }
 
@@ -124,7 +135,7 @@ async function listFleets(userId: string): Promise<FleetDto[]> {
     orderBy: { updatedAt: "desc" },
     include: { instances: true },
   });
-  return fleets.map((f) => instancesToFleet(f, f.instances as DbInstance[]));
+  return fleets.map((f) => instancesToFleet(f as any, f.instances as DbInstance[]));
 }
 
 export async function GET() {
@@ -148,11 +159,23 @@ export async function POST(req: NextRequest) {
     if (existing && existing.userId !== user.id) throw new Error("Fleet not found.");
 
     await prisma.$transaction(async (tx) => {
+      const fleetData = {
+        name: fleet.name,
+        maxCommandPoints: fleet.maxCommandPoints,
+        moduleConfig: fleet.moduleConfig ? JSON.stringify(fleet.moduleConfig) : null,
+      };
+
       if (existing) {
         await tx.fleetShipInstance.deleteMany({ where: { fleetId: fleet.id } });
-        await tx.savedFleet.update({ where: { id: fleet.id }, data: { name: fleet.name } });
+        await tx.savedFleet.update({ where: { id: fleet.id }, data: fleetData });
       } else {
-        await tx.savedFleet.create({ data: { id: fleet.id, userId: user.id, name: fleet.name } });
+        await tx.savedFleet.create({
+          data: {
+            id: fleet.id,
+            userId: user.id,
+            ...fleetData,
+          },
+        });
       }
 
       const records = fleetToInstances(fleet.id, fleet);

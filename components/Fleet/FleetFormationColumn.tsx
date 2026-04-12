@@ -21,10 +21,10 @@ interface Props {
 }
 
 const borderColors: Record<string, string> = {
-  back: "border-blue-200 bg-blue-100/50 dark:border-blue-900/60 dark:bg-blue-950/40",
-  middle: "border-yellow-200 bg-yellow-100/50 dark:border-yellow-900/60 dark:bg-yellow-950/40",
-  front: "border-red-200 bg-red-100/50 dark:border-red-900/60 dark:bg-red-950/40",
-  reinforcements: "border-emerald-200 bg-emerald-100/50 dark:border-emerald-900/60 dark:bg-emerald-950/40",
+  back: "border-blue-200 bg-blue-100/50 dark:border-blue-900/60 dark:bg-neutral-900",
+  middle: "border-yellow-200 bg-yellow-100/50 dark:border-yellow-900/60 dark:bg-neutral-900",
+  front: "border-red-200 bg-red-100/50 dark:border-red-900/60 dark:bg-neutral-900",
+  reinforcements: "border-emerald-200 bg-emerald-100/50 dark:border-emerald-900/60 dark:bg-emerald",
 };
 
 const dragOverColors: Record<string, string> = {
@@ -82,7 +82,7 @@ export default function FleetFormationColumn({ row, label, description, instance
           {instances.length}
         </span>
       </div>
-      <p className="mb-3 text-[0.6rem] text-neutral-400 dark:text-neutral-500">{description}</p>
+      <p className="mb-3 text-[0.6rem] text-neutral-600 dark:text-neutral-300">{description}</p>
 
       {stacks.length > 0 ? (
         <div className="flex flex-col gap-2">
@@ -101,7 +101,7 @@ export default function FleetFormationColumn({ row, label, description, instance
         </div>
       ) : (
         <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-neutral-300 py-6 dark:border-neutral-600">
-          <p className="text-[0.65rem] text-neutral-400 dark:text-neutral-500">Drop ships here</p>
+          <p className="text-[0.65rem] text-neutral-600 dark:text-neutral-300">Drop ships here</p>
         </div>
       )}
     </div>

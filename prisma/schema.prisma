@@ -339,13 +339,16 @@ model ModuleBlueprint {
 // ============================================================================
 
 model SavedFleet {
-  id        String              @id @default(cuid())
-  userId    String
-  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name      String
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
-  instances FleetShipInstance[]
+  id               String              @id @default(cuid())
+  userId           String
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  maxCommandPoints Int                 @default(400)
+  /// JSON string of Record<string, Record<string, number>>
+  moduleConfig     String?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  instances        FleetShipInstance[]
 }
 
 model FleetShipInstance {
