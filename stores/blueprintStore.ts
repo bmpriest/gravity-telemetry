@@ -71,8 +71,9 @@ export const useBlueprintStore = create<BlueprintState>((set, get) => ({
     if (typeof window === "undefined") return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      const parsed = raw ? (JSON.parse(raw) as BlueprintAccountDTO[]) : [];
-      set({ accounts: Array.isArray(parsed) ? parsed : [] });
+      const { syncedWithServer, accounts: currentAccounts } = get();
+      const accounts: BlueprintAccountDTO[] = syncedWithServer ? currentAccounts : (raw ? (JSON.parse(raw) as BlueprintAccountDTO[]) : []);
+      set({ accounts: Array.isArray(accounts) ? accounts : [] });
     } catch {
       // ignore parse failures
     }

@@ -45,6 +45,13 @@ interface FleetState {
 
 export type { FleetRow };
 
+const typeOrder: Record<CarrierCapacity["type"], number> = {
+  "Small Fighter": 0,
+  "Medium Fighter": 1,
+  "Large Fighter": 2,
+  "Corvette": 3
+};
+
 export const useFleetStore = create<FleetState>()(
   subscribeWithSelector((set, get) => ({
     fleet: createEmptyFleet(),
@@ -153,18 +160,16 @@ export const useFleetStore = create<FleetState>()(
       const allAircraftTypes = currentLoads.map(inst => {
         const s = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
         return s ? getCarriableType(s) : null;
-      }).filter((t): t is NonNullable<typeof t> => t !== null);
+      }).filter((t): t is CarrierCapacity["type"] => t !== null);
 
       allAircraftTypes.push(carriableType);
-
-      const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
-      allAircraftTypes.sort((a, b) => order[a] - order[b]);
+      allAircraftTypes.sort((a, b) => typeOrder[a] - typeOrder[b]);
 
       const tempCapacities = capacities.map(c => ({ ...c }));
       for (const airType of allAircraftTypes) {
         const fitSlot = tempCapacities
           .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, airType))
-          .sort((a, b) => order[a.type] - order[b.type])[0];
+          .sort((a, b) => typeOrder[a.type] - typeOrder[b.type])[0];
         
         if (!fitSlot) return `Carrier is full for ${carriableType}s.`;
         fitSlot.capacity--;
@@ -225,8 +230,7 @@ export const useFleetStore = create<FleetState>()(
             return { inst, type: ship ? getCarriableType(ship) : null };
           }).filter((a): a is { inst: FleetShipInstance; type: CarrierCapacity["type"] } => a.type !== null);
 
-          const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
-          aircraft.sort((a, b) => order[a.type] - order[b.type]);
+          aircraft.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
 
           const tempCapacities = capacities.map(c => ({ ...c }));
           const validInstances: FleetShipInstance[] = [];
@@ -234,7 +238,7 @@ export const useFleetStore = create<FleetState>()(
           for (const item of aircraft) {
             const fitSlot = tempCapacities
               .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type))
-              .sort((a, b) => order[a.type] - order[b.type])[0];
+              .sort((a, b) => typeOrder[a.type] - typeOrder[b.type])[0];
             
             if (fitSlot) {
               fitSlot.capacity--;
@@ -331,15 +335,16 @@ export const useFleetStore = create<FleetState>()(
         const savedRaw = localStorage.getItem(STORAGE_KEY);
         const currentRaw = localStorage.getItem(CURRENT_FLEET_KEY);
 
-        let savedFleets: Fleet[] = savedRaw ? (JSON.parse(savedRaw) as Fleet[]) : [];
-        let fleet: Fleet = currentRaw ? (JSON.parse(currentRaw) as Fleet) : createEmptyFleet();
-
         const sanitize = (f: Fleet) => {
           if (!f.rows.reinforcements) f.rows.reinforcements = [];
           if (!f.moduleConfig) f.moduleConfig = {};
           if (!f.carrierLoads) f.carrierLoads = {};
           return f;
         };
+
+        const { syncedWithServer, savedFleets: currentSavedFleets } = get();
+        let savedFleets: Fleet[] = syncedWithServer ? currentSavedFleets : (savedRaw ? (JSON.parse(savedRaw) as Fleet[]) : []);
+        let fleet: Fleet = currentRaw ? (JSON.parse(currentRaw) as Fleet) : createEmptyFleet();
 
         fleet = sanitize(fleet);
         savedFleets = savedFleets.map(sanitize);

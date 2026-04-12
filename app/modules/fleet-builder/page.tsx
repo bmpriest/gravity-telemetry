@@ -79,7 +79,6 @@ export default function FleetBuilderPage() {
   const noticeTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
-    loadFromStorage();
     if (!shipData) init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
