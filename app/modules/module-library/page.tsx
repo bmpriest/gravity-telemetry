@@ -73,15 +73,6 @@ export default function ModuleLibraryPage() {
 
   return (
     <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-8">
-      <div className="flex w-full flex-col items-center justify-center md:w-[25rem] lg:w-[30rem]">
-        <h1 className="text-3xl font-bold transition duration-500">Module Library</h1>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
-          <span className="flex items-center justify-center">
-            <img className="size-12 select-none transition duration-500 dark:invert" src="/ui/moduleLibrary.svg" aria-hidden="true" />
-          </span>
-        </div>
-      </div>
-
       <div className="mt-4 flex w-full flex-col items-center justify-center gap-4 lg:flex-row lg:items-start xl:gap-8">
         <div className="flex w-[90vw] shrink-0 flex-col items-center justify-start gap-1 rounded-xl bg-neutral-100/25 p-2 transition duration-500 sm:w-80 lg:sticky lg:top-20 lg:w-64 xl:w-72 dark:bg-neutral-900">
           {data ? (

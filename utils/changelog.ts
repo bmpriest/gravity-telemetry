@@ -457,5 +457,17 @@ export const changelog: readonly Changelog[] = [
       "Retooled entire site to use React",
       "Added initial pass of Fleet Builder"
     ]
+  },
+  {
+    type: "release",
+    version: "3.2.1",
+    release: "2026-04-12",
+    notes: [
+      "Enhanced Fleet Builder. Fixed a lot of bugs. Integrates into Blueprint Tracker and Module Library for owned/unowned stuff",
+      "Added some administrator tools to easily add new ships",
+      "Added all new Pangaea ships! And all other missing ships using placeholder graphics",
+      "Added Swordbearer, Dubhe, Megrez, although they're missing all of their modules",
+      "Added simple login user functionality"
+    ]
   }
 ];

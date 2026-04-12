@@ -107,57 +107,76 @@ function fromShip(s: AllShip, manufacturers: Manufacturer[]): ShipFormValues {
 }
 
 export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
-  const [values, setValues] = useState<ShipFormValues>(emptyForm);
+  const [values, setValues] = useState<ShipFormValues>(emptyForm());
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Inline "+ Add new manufacturer" modal state.
   const [addingManufacturer, setAddingManufacturer] = useState(false);
   const [newManufacturerName, setNewManufacturerName] = useState("");
   const [addingManufacturerLoading, setAddingManufacturerLoading] = useState(false);
   const [addingManufacturerError, setAddingManufacturerError] = useState("");
 
-  // Load manufacturers and rehydrate the form once the lookup is available so
-  // editing an existing ship can resolve `manufacturer` (a name) back to an id.
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [modulesExpanded, setModulesExpanded] = useState(false);
+
   useEffect(() => {
-    let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/admin/manufacturers", { credentials: "same-origin" });
-        const json = await res.json();
-        if (!json.success) throw new Error(json.error ?? "Failed to load manufacturers.");
-        if (cancelled) return;
-        const list: Manufacturer[] = json.data;
-        setManufacturers(list);
-        // Initial form values now that we have the manufacturer list to resolve
-        // the FK from the existing ship's manufacturer name.
-        if (ship) {
-          setValues(fromShip(ship, list));
-        } else {
-          setValues((v) => ({ ...v, manufacturerId: list[0]?.id ?? null }));
+        const [mRes, iRes] = await Promise.all([
+          fetch("/api/admin/manufacturers"),
+          fetch("/api/admin/ships/images"),
+        ]);
+        const mJson = await mRes.json();
+        const iJson = await iRes.json();
+        
+        if (mJson.success && Array.isArray(mJson.data)) {
+          // Sort manufacturers: alphabetical, with "Empty" at the bottom
+          const sorted = (mJson.data as Manufacturer[]).sort((a, b) => {
+            if (a.name === "Empty") return 1;
+            if (b.name === "Empty") return -1;
+            return a.name.localeCompare(b.name);
+          });
+          setManufacturers(sorted);
+          if (ship) setValues(fromShip(ship, sorted));
+          else setValues((v) => ({ ...v, manufacturerId: sorted[0]?.id ?? null }));
+        }
+        if (iJson.success && Array.isArray(iJson.data)) {
+          setImages(iJson.data);
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load manufacturers.");
+        console.error("Failed to load form data", e);
       }
     }
     void load();
-    return () => { cancelled = true; };
-  // We re-run if the user opens the form for a different ship.
   }, [ship]);
 
-  function update<K extends keyof ShipFormValues>(key: K, value: ShipFormValues[K]) {
-    setValues((v) => ({ ...v, [key]: value }));
+  function update<K extends keyof ShipFormValues>(k: K, v: ShipFormValues[K]) {
+    setValues((prev) => ({ ...prev, [k]: v }));
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const payload: ShipFormValues = isSupercap
+        ? { ...values, variant: "A", variantName: "", hasVariants: false }
+        : values;
+      await onSubmit(payload);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submission failed.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function createManufacturer() {
     const name = newManufacturerName.trim();
-    if (!name) {
-      setAddingManufacturerError("Name is required.");
-      return;
-    }
-    setAddingManufacturerError("");
+    if (!name) return;
     setAddingManufacturerLoading(true);
+    setAddingManufacturerError("");
     try {
       const res = await fetch("/api/admin/manufacturers", {
         method: "POST",
@@ -166,53 +185,56 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
         credentials: "same-origin",
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error ?? "Failed to create manufacturer.");
-      // Re-fetch the canonical list so the dropdown stays sorted by name, then
-      // select the freshly created id.
-      const listRes = await fetch("/api/admin/manufacturers", { credentials: "same-origin" });
-      const listJson = await listRes.json();
-      if (listJson.success) setManufacturers(listJson.data);
-      update("manufacturerId", json.id as number);
+      if (!json.success) throw new Error(json.error ?? "Failed to add.");
+      
+      const newM = { id: json.id, name };
+      const nextList = [...manufacturers, newM].sort((a, b) => {
+        if (a.name === "Empty") return 1;
+        if (b.name === "Empty") return -1;
+        return a.name.localeCompare(b.name);
+      });
+      setManufacturers(nextList);
+      update("manufacturerId", newM.id);
       setAddingManufacturer(false);
       setNewManufacturerName("");
     } catch (e) {
-      setAddingManufacturerError(e instanceof Error ? e.message : "Failed to create manufacturer.");
+      setAddingManufacturerError(e instanceof Error ? e.message : "Failed to add.");
     } finally {
       setAddingManufacturerLoading(false);
     }
   }
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
     setError("");
-    if (values.manufacturerId == null) {
-      setError("Manufacturer is required.");
-      return;
-    }
-    setLoading(true);
     try {
-      // Force supercap variants to ("A", hasVariants:false) — those fields are
-      // hidden in the UI but the unique (name, variant) constraint still needs
-      // a value, and the catalogue convention is that supercaps live as the A
-      // variant of a single-variant family.
-      const payload: ShipFormValues = isSupercap
-        ? { ...values, variant: "A", variantName: "", hasVariants: false }
-        : values;
-      await onSubmit(payload);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/admin/ships/images", {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin",
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Upload failed.");
+
+      setImages((prev) => [...prev, json.data.path].sort());
+      update("img", json.data.path);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed.");
+      setError(e instanceof Error ? e.message : "Upload failed.");
     } finally {
-      setLoading(false);
+      setUploadingImage(false);
     }
   }
 
+  const isSupercap = SUPERCAP_TYPES.has(values.type);
   const isFighter = values.type === "Fighter";
   const isCorvette = values.type === "Corvette";
-  const isSupercap = SUPERCAP_TYPES.has(values.type);
-  // Carriers and aux ships still have hanger capacity at the *ship* level for
-  // anything not represented as a subsystem yet, so the capacity rows stay
-  // available for everything that isn't a Fighter or Corvette.
-  const canCarrySomething = !(isFighter || isCorvette);
+  const canCarrySomething = !(isFighter || isCorvette || isSupercap);
   const fallbackImg = `/ships/classes/${values.type.toLowerCase()}.svg`;
 
   return (
@@ -221,50 +243,44 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
       onClick={onCancel}
     >
       <form
+        className="flex max-h-full w-full max-w-4xl flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 dark:bg-neutral-800 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
-        onSubmit={handleSubmit}
-        className="flex max-h-[90dvh] w-full max-w-2xl flex-col gap-3 overflow-y-auto rounded-2xl bg-white p-6 dark:bg-neutral-800"
+        onSubmit={(e) => void handleSubmit(e)}
       >
-        <h3 className="text-xl font-bold">{ship ? `Edit ${ship.name} (${ship.variant})` : "New ship"}</h3>
+        <h2 className="text-xl font-bold">{ship ? `Edit ${ship.name} (${ship.variant})` : "New ship"}</h2>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Name *">
-            <input required value={values.name} onChange={(e) => update("name", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="Title">
-            <input value={values.title} onChange={(e) => update("title", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="Image path">
             <input
-              value={values.img}
-              onChange={(e) => update("img", e.target.value)}
-              placeholder={fallbackImg}
+              required
+              value={values.name}
+              onChange={(e) => update("name", e.target.value)}
+              placeholder="e.g. Conamara Chaos"
               className={inputCls}
             />
-            <span className="mt-1 text-[10px] text-neutral-500 dark:text-neutral-400">
-              Leave blank to fall back to the variant-A image, then to the type icon.
-            </span>
           </Field>
-          <Field label="Type *">
-            <select value={values.type} onChange={(e) => update("type", e.target.value)} className={inputCls}>
+          <Field label="Title">
+            <input
+              value={values.title}
+              onChange={(e) => update("title", e.target.value)}
+              placeholder="e.g. High-Speed Plasma Cruiser"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Ship type *">
+            <select
+              value={values.type}
+              onChange={(e) => update("type", e.target.value)}
+              className={inputCls}
+            >
               {SHIP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </Field>
-          {!isSupercap && (
-            <>
-              <Field label="Variant *">
-                <select value={values.variant} onChange={(e) => update("variant", e.target.value)} className={inputCls}>
-                  {VARIANTS.map((v) => <option key={v} value={v}>{v === "H" ? "H (Hero)" : v}</option>)}
-                </select>
-              </Field>
-              <Field label="Variant name">
-                <input value={values.variantName} onChange={(e) => update("variantName", e.target.value)} className={inputCls} />
-              </Field>
-            </>
-          )}
+
           <Field label="Manufacturer *">
             <div className="flex gap-2">
               <select
+                required
                 value={values.manufacturerId ?? ""}
                 onChange={(e) => update("manufacturerId", e.target.value === "" ? null : Number(e.target.value))}
                 className={inputCls}
@@ -274,32 +290,108 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
               </select>
               <button
                 type="button"
-                onClick={() => { setAddingManufacturer(true); setNewManufacturerName(""); setAddingManufacturerError(""); }}
-                className="fo-btn shrink-0 rounded-lg border-blue-300 bg-blue-100 px-3 py-2 text-xs font-medium text-black hover:text-white dark:text-white hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+                className="fo-btn shrink-0 rounded-lg border-neutral-300 bg-neutral-100 px-3 py-2 text-xs font-medium text-black hover:text-white hover:bg-neutral-400 dark:text-white dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+                onClick={() => setAddingManufacturer(true)}
               >
-                + Add new
+                +
               </button>
             </div>
           </Field>
+
+          <Field label="Image">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-1">
+                <select
+                  value={values.img}
+                  onChange={(e) => update("img", e.target.value)}
+                  className={inputCls}
+                >
+                  <option value="">— Use fallback —</option>
+                  {Array.isArray(images) && images.map((img) => (
+                    <option key={img} value={img}>{img.replace("/ships/", "")}</option>
+                  ))}
+                </select>
+                <label className="fo-btn flex cursor-pointer items-center justify-center shrink-0 rounded-lg border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium text-black hover:text-white hover:bg-neutral-400 dark:text-white dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600">
+                  {uploadingImage ? "…" : "↑"}
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.webp"
+                    className="hidden"
+                    onChange={(e) => void handleImageUpload(e)}
+                    disabled={uploadingImage}
+                  />
+                </label>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded border border-neutral-200 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900">
+                  <img src={values.img || fallbackImg} alt="" className="h-full w-full object-contain" />
+                </div>
+                {!values.img && <span className="text-[10px] text-neutral-500">Falling back to {fallbackImg}</span>}
+              </div>
+            </div>
+          </Field>
+
           <Field label="Row *">
-            <select value={values.row} onChange={(e) => update("row", e.target.value)} className={inputCls}>
+            <select
+              value={values.row}
+              onChange={(e) => update("row", e.target.value)}
+              className={inputCls}
+            >
               {ROWS.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
           </Field>
           <Field label="Command points *">
-            <input type="number" min={0} value={values.commandPoints} onChange={(e) => update("commandPoints", Number(e.target.value))} className={inputCls} />
+            <input
+              type="number"
+              min={1}
+              value={values.commandPoints}
+              onChange={(e) => update("commandPoints", Number(e.target.value))}
+              className={inputCls}
+            />
           </Field>
           <Field label="Service limit *">
-            <input type="number" min={0} value={values.serviceLimit} onChange={(e) => update("serviceLimit", Number(e.target.value))} className={inputCls} />
+            <input
+              type="number"
+              min={1}
+              value={values.serviceLimit}
+              onChange={(e) => update("serviceLimit", Number(e.target.value))}
+              className={inputCls}
+            />
           </Field>
+
           {!isSupercap && (
-            <Field label="Has variants">
-              <label className="flex items-center gap-2 py-2 text-sm">
-                <input type="checkbox" checked={values.hasVariants} onChange={(e) => update("hasVariants", e.target.checked)} />
-                This ship has multiple variants
-              </label>
-            </Field>
+            <>
+              <Field label="Variant *">
+                <select
+                  value={values.variant}
+                  onChange={(e) => update("variant", e.target.value)}
+                  className={inputCls}
+                >
+                  {VARIANTS.map((v) => <option key={v} value={v}>{v === "H" ? "H (Hero)" : v}</option>)}
+                </select>
+              </Field>
+              <Field label="Variant name">
+                <input
+                  value={values.variantName}
+                  onChange={(e) => update("variantName", e.target.value)}
+                  placeholder="e.g. Dual-Purpose Type"
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Family status">
+                <label className="flex h-full items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.hasVariants}
+                    onChange={(e) => update("hasVariants", e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-300 transition duration-500 dark:border-neutral-600 dark:bg-neutral-900"
+                  />
+                  This ship has multiple variants
+                </label>
+              </Field>
+            </>
           )}
+          
           {isFighter && (
             <>
               <Field label="Fighter type">
@@ -368,8 +460,26 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
             so we hide it on the "+ New ship" path. After the first save the
             ship will have an id and the next open-Edit cycle exposes this. */}
         {ship && (
-          <div className="mt-2">
-            <AdminShipModules shipId={ship.id} />
+          <div className="mt-2 border-t border-neutral-100 pt-4 dark:border-neutral-700">
+            {isSupercap ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModulesExpanded(!modulesExpanded)}
+                  className="flex w-full items-center justify-between rounded-lg border border-neutral-300 bg-neutral-50 px-4 py-2 text-sm font-semibold text-black transition hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-700 dark:text-white dark:hover:bg-neutral-600"
+                >
+                  <span>Modules & Subsystems</span>
+                  <span>{modulesExpanded ? "▲" : "▼"}</span>
+                </button>
+                {modulesExpanded && (
+                  <div className="mt-2 rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+                    <AdminShipModules shipId={ship.id} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <AdminShipModules shipId={ship.id} />
+            )}
           </div>
         )}
 
@@ -379,14 +489,14 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
           <button
             type="button"
             onClick={onCancel}
-            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm text-black hover:text-white dark:text-white dark:border-neutral-600 dark:bg-neutral-700"
+            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm font-medium text-black hover:bg-neutral-400 hover:text-white dark:text-white dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium text-black hover:text-white disabled:opacity-50 dark:text-white dark:border-blue-500 dark:bg-blue-800"
+            className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-bold text-black hover:bg-blue-400 hover:text-white disabled:opacity-50 dark:text-white dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
           >
             {loading ? "Saving…" : ship ? "Save changes" : "Create ship"}
           </button>
@@ -401,7 +511,7 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
           onClick={() => setAddingManufacturer(false)}
         >
           <div
-            className="flex w-full max-w-sm flex-col gap-3 rounded-2xl bg-white p-6 dark:bg-neutral-800"
+            className="flex w-full max-w-sm flex-col gap-3 rounded-2xl bg-white p-6 dark:bg-neutral-800 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <h4 className="text-lg font-bold">New manufacturer</h4>
@@ -419,7 +529,7 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
             <div className="flex justify-end gap-2">
               <button
                 type="button"
-                className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-700"
+                className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs font-medium text-black hover:bg-neutral-400 hover:text-white dark:text-white dark:border-neutral-600 dark:bg-neutral-700"
                 onClick={() => setAddingManufacturer(false)}
               >
                 Cancel
@@ -427,7 +537,7 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
               <button
                 type="button"
                 disabled={addingManufacturerLoading}
-                className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-3 py-1 text-xs font-medium disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
+                className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-3 py-1 text-xs font-bold text-black hover:bg-blue-400 hover:text-white disabled:opacity-50 dark:text-white dark:border-blue-500 dark:bg-blue-800"
                 onClick={() => void createManufacturer()}
               >
                 {addingManufacturerLoading ? "Adding…" : "Add"}
@@ -444,9 +554,9 @@ const inputCls = "fo-input w-full rounded-lg border-neutral-300 bg-white px-3 py
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       <span className="text-xs font-medium text-neutral-600 transition duration-500 dark:text-neutral-300">{label}</span>
       {children}
-    </label>
+    </div>
   );
 }

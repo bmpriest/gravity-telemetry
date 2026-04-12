@@ -13,7 +13,7 @@ interface Props {
 }
 
 export default function FleetAircraftSection({ fleet, ships, onLoad, onUnload }: Props) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const stats = useMemo(() => getFleetAircraftStats(fleet, ships), [fleet, ships]);
 

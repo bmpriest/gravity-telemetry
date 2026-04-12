@@ -85,6 +85,9 @@ export default function AdminShips() {
   // until the user clicks a different tab.
   const [activeVariant, setActiveVariant] = useState<Record<string, string>>({});
 
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+
   async function refresh() {
     setError("");
     try {
@@ -94,6 +97,58 @@ export default function AdminShips() {
       setShips(json.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load ships.");
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/admin/ships/backup", { credentials: "same-origin" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Export failed.");
+      
+      // Accessing json.data which now contains { manufacturers, ships }
+      const blob = new Blob([JSON.stringify(json.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gravity_ships_backup_${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!confirm("Importing will overwrite existing ships with the same name/variant. Continue?")) return;
+
+    setImporting(true);
+    setError("");
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      
+      const res = await fetch("/api/admin/ships/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "same-origin",
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Import failed.");
+      
+      alert("Import successful!");
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed.");
+    } finally {
+      setImporting(false);
+      e.target.value = "";
     }
   }
 
@@ -155,13 +210,35 @@ export default function AdminShips() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name, title or variant..."
-          className="fo-input w-full max-w-xs rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
-        />
+        <div className="flex flex-1 items-center gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, title or variant..."
+            className="fo-input w-full max-w-xs rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => void handleExport()}
+              className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium hover:bg-neutral-200 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+            >
+              {exporting ? "Exporting…" : "Export JSON"}
+            </button>
+            <label className="flex cursor-pointer items-center justify-center rounded-lg border border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600">
+              {importing ? "Importing…" : "Import JSON"}
+              <input
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={(e) => void handleImport(e)}
+                disabled={importing}
+              />
+            </label>
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => setCreating(true)}
@@ -194,8 +271,42 @@ export default function AdminShips() {
               key={group.name}
               className="flex flex-col rounded-xl border border-neutral-200 bg-white transition duration-500 dark:border-neutral-700 dark:bg-neutral-800"
             >
+
+              <div className="flex flex-1 items-start gap-3 p-3">
+                <img src={active.img} alt="" className="h-14 w-20 shrink-0 object-contain" />
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <div className="flex items-baseline gap-2">
+                    <span className="truncate font-semibold">{active.name}</span>
+                    {!showTabs && active.variant === "H" && (
+                      <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-200 dark:text-orange-900">
+                        Hero
+                      </span>
+                    )}
+                  </div>
+                  <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">{active.title}</div>
+                  <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">
+                    {active.variantName ? `${active.variant} · ${active.variantName}` : active.variant}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-600 dark:text-neutral-300">
+                    <span className="flex items-center gap-1">
+                      <img
+                        src={`/ships/classes/${active.type.toLowerCase()}.svg`}
+                        alt=""
+                        className="h-3 w-3 dark:invert"
+                      />
+                      {active.type}
+                    </span>
+                    <span>{active.manufacturer}</span>
+                    <span>{active.row}</span>
+                    <span>CP {active.commandPoints}</span>
+                    <span>SL {active.serviceLimit}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 border-t border-neutral-100 p-2 dark:border-neutral-700">
               {showTabs && (
-                <div className="flex flex-wrap gap-1 border-b border-neutral-200 p-2 dark:border-neutral-700">
+                <>
                   {group.variants.map((v) => {
                     const isActive = v.variant === active.variant;
                     const isHero = v.variant === "H";
@@ -219,51 +330,24 @@ export default function AdminShips() {
                       </button>
                     );
                   })}
-                </div>
+                  </>
               )}
-
-              <div className="flex flex-1 items-start gap-3 p-3">
-                <img src={active.img} alt="" className="h-14 w-20 shrink-0 object-contain" />
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <div className="flex items-baseline gap-2">
-                    <span className="truncate font-semibold">{active.name}</span>
-                    {!showTabs && active.variant === "H" && (
-                      <span className="rounded-full bg-orange-100 px-1.5 py-0.5 text-[10px] font-semibold text-orange-800 dark:bg-orange-200 dark:text-orange-900">
-                        Hero
-                      </span>
-                    )}
-                  </div>
-                  <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">{active.title}</div>
-                  <div className="truncate text-xs text-neutral-500 dark:text-neutral-400">
-                    {active.variantName ? `${active.variant} · ${active.variantName}` : active.variant}
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-neutral-600 dark:text-neutral-300">
-                    <span>{active.type}</span>
-                    <span>{active.manufacturer}</span>
-                    <span>{active.row}</span>
-                    <span>CP {active.commandPoints}</span>
-                    <span>SL {active.serviceLimit}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 border-t border-neutral-100 p-2 dark:border-neutral-700">
-                <button
-                  type="button"
-                  className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600"
-                  onClick={() => setEditing(active)}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="fo-btn rounded-lg border-red-300 bg-red-100 px-3 py-1 text-xs hover:bg-red-200 dark:border-red-600 dark:bg-red-900 dark:hover:bg-red-800"
-                  onClick={() => setDeleteTarget(active)}
-                >
-                  Delete
-                </button>
-              </div>
+              <button
+                type="button"
+                className="ml-auto fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-600"
+                onClick={() => setEditing(active)}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                className="fo-btn rounded-lg border-red-300 bg-red-100 px-3 py-1 text-xs hover:bg-red-200 dark:border-red-600 dark:bg-red-900 dark:hover:bg-red-800"
+                onClick={() => setDeleteTarget(active)}
+              >
+                Delete
+              </button>
             </div>
+          </div>
           );
         })}
       </div>

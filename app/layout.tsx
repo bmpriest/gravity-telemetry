@@ -4,7 +4,7 @@ import "./globals.css";
 import RootLayoutClient from "@/components/layout/RootLayoutClient";
 
 export const metadata: Metadata = {
-  title: "Gravity Assist",
+  title: "Gravity Telemetry",
   description: "A toolset for Infinite Lagrange players",
   openGraph: {
     type: "website",

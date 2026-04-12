@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 /**
  * Admin → Manufacturers tab. Curates the Manufacturer table that backs the
@@ -43,6 +43,15 @@ export default function AdminManufacturers() {
   }
 
   useEffect(() => { void refresh(); }, []);
+
+  const sortedItems = useMemo(() => {
+    if (!items) return undefined;
+    return [...items].sort((a, b) => {
+      if (a.name === "Empty") return 1;
+      if (b.name === "Empty") return -1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [items]);
 
   async function createManufacturer() {
     const name = newName.trim();
@@ -163,7 +172,7 @@ export default function AdminManufacturers() {
                 </td>
               </tr>
             )}
-            {items?.map((m) => {
+            {sortedItems?.map((m) => {
               const isEditing = editingId === m.id;
               return (
                 <tr key={m.id} className="border-t border-neutral-100 transition duration-500 dark:border-neutral-800">

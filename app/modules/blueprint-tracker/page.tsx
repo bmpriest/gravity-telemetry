@@ -248,15 +248,6 @@ export default function BlueprintTrackerPage() {
       className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-8"
       onClick={() => setCloseToolbar(true)}
     >
-      <div className="flex w-full flex-col items-center justify-center md:w-[25rem] lg:w-[30rem]">
-        <h1 className="text-3xl font-bold transition duration-500">Blueprint Tracker</h1>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
-          <span className="flex items-center justify-center">
-            <img className="size-12 select-none transition duration-500 dark:invert" src="/ui/bpTracker.svg" aria-hidden="true" />
-          </span>
-        </div>
-      </div>
-
       <BlueprintsToolbar
         closeToolbar={closeToolbar}
         data={data}
