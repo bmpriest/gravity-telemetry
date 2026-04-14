@@ -121,7 +121,8 @@ export const attributes = {
   "UAV Aerial Cover Support": "Each aircraft in the same hanger comes with a UAV. The UAV provides anti-aircraft support and strikes back at enemy aircraft that attack the supporting aircraft."
 };
 
-interface Subsystem {
+export interface Subsystem {
+  id: number;
   count: number;
   title: string;
   name: string;

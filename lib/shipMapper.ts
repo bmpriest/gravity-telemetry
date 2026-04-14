@@ -25,6 +25,7 @@ interface DbTargetCategory { category: string; position: number; damage: number;
 interface DbUavPriority { order: number; targetType: string }
 interface DbAttribute { attribute: string }
 interface DbSubsystem {
+  id: number;
   count: number;
   title: string;
   name: string;
@@ -191,6 +192,7 @@ function mapSubsystem(sub: DbSubsystem): any {
 
   if (sub.kind === "weapon") {
     return {
+      id: sub.id,
       type: "weapon",
       count: sub.count,
       title: sub.title,
@@ -215,6 +217,7 @@ function mapSubsystem(sub: DbSubsystem): any {
 
     if (isAircraft) {
       return {
+        id: sub.id,
         type: "hanger",
         count: sub.count,
         title: sub.title,
@@ -227,6 +230,7 @@ function mapSubsystem(sub: DbSubsystem): any {
 
     if (sub.repair !== null) {
       return {
+        id: sub.id,
         type: "hanger",
         count: sub.count,
         title: sub.title,
@@ -243,6 +247,7 @@ function mapSubsystem(sub: DbSubsystem): any {
     // targetPriority array.
     if (sub.damageType !== null) {
       return {
+        id: sub.id,
         type: "hanger",
         count: sub.count,
         title: sub.title,
@@ -259,6 +264,7 @@ function mapSubsystem(sub: DbSubsystem): any {
     }
 
     return {
+      id: sub.id,
       type: "hanger",
       count: sub.count,
       title: sub.title,
@@ -272,6 +278,7 @@ function mapSubsystem(sub: DbSubsystem): any {
 
   // misc subsystem
   return {
+    id: sub.id,
     type: "misc",
     count: sub.count,
     title: sub.title,

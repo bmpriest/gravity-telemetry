@@ -6,7 +6,7 @@ import AdminShipForm, { type ShipFormValues } from "./AdminShipForm";
 
 /**
  * Admin → Ships tab. Groups the catalogue by ship name (one card per name)
- * with a tab strip across the top for the variants that actually exist for
+ * with a tab strip across the bottom for the variants that actually exist for
  * that ship. Hero variants are represented as the literal "H" tab and pick
  * up a small badge so they're visually distinct from A-D.
  *

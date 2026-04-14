@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { Subsystem } from "@/utils/ships";
 
 /**
  * Module + subsystem editor that hangs off the ship edit modal. Loads the
@@ -54,8 +55,7 @@ interface RawModule {
   name?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stats?: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  subsystems?: any[];
+  subsystems?: Subsystem[];
 }
 
 interface ModuleFormValues {
@@ -278,7 +278,7 @@ export default function AdminShipModules({ shipId, onChange }: Props) {
 
   // Index returned modules by id and id-of-subsystem for fast lookup when
   // hydrating an edit form from the existing data.
-  function findSub(id: number): { mod: RawModule; sub: { id: number } & Record<string, unknown> } | undefined {
+  function findSub(id: number): { mod: RawModule; sub: Subsystem } | undefined {
     if (!modules) return undefined;
     for (const m of modules) {
       const subs = m.subsystems ?? [];
@@ -489,7 +489,7 @@ export default function AdminShipModules({ shipId, onChange }: Props) {
                 {(m.subsystems ?? []).length === 0 && (
                   <p className="text-xs text-neutral-500 dark:text-neutral-400">No subsystems.</p>
                 )}
-                {(m.subsystems ?? []).map((s: { id: number } & Record<string, unknown>) => {
+                {(m.subsystems ?? []).map((s: Subsystem) => {
                   const isSubEditing = editingSubId === s.id;
                   return (
                     <div key={s.id} className="rounded-md border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-900">
@@ -503,13 +503,13 @@ export default function AdminShipModules({ shipId, onChange }: Props) {
                       ) : (
                         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                           <div className="flex flex-1 items-center gap-2">
-                            <span className="rounded bg-neutral-200 px-1.5 py-0.5 font-mono dark:bg-neutral-700">×{(s as { count?: number }).count ?? 1}</span>
-                            <span className="font-medium">{(s as { title?: string }).title}</span>
-                            <span className="text-neutral-500 dark:text-neutral-400">{(s as { name?: string }).name}</span>
-                            <span className="rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] dark:bg-neutral-700">{(s as { type?: string }).type}</span>
-                            {(s as { hanger?: string }).hanger && (
+                            <span className="rounded bg-neutral-200 px-1.5 py-0.5 font-mono dark:bg-neutral-700">×{s.count ?? 1}</span>
+                            <span className="font-medium">{s.title}</span>
+                            <span className="text-neutral-500 dark:text-neutral-400">{s.name}</span>
+                            <span className="rounded-full bg-neutral-200 px-1.5 py-0.5 text-[10px] dark:bg-neutral-700">{(s as any).type}</span>
+                            {(s as any).hanger && (
                               <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] text-blue-800 dark:bg-blue-200 dark:text-blue-900">
-                                {(s as { hanger?: string }).hanger} cap {(s as { capacity?: number }).capacity ?? 0}
+                                {(s as any).hanger} total cap: {((s as any).capacity ?? 0) * (s.count ?? 0)}
                               </span>
                             )}
                           </div>

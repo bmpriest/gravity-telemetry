@@ -86,6 +86,7 @@ export default function LibraryShowcaseCardSubsystemCard({ subsystem }: Props) {
 
         <div className="mt-3 flex w-full flex-col items-center justify-center gap-1">
           {Object.entries(properties).map(([name, property]) => (
+            <>
             <div key={name} className="flex w-full items-center justify-between">
               <h5 className="inline-flex items-center justify-center gap-1 text-left font-medium transition duration-500">
                 <img className="size-6 select-none transition duration-500 dark:invert" src={`/weapons/types/${propertyNames[name]?.[1] ?? name}.svg`} aria-hidden="true" />
@@ -95,6 +96,13 @@ export default function LibraryShowcaseCardSubsystemCard({ subsystem }: Props) {
                 {((property ?? 0) as number).toLocaleString() + (name === "lockonEfficiency" ? "%" : "")}
               </p>
             </div>
+            {(name === "capacity") && 
+             (subsystem.count > 1) && 
+             (subsystem.type === "hanger") &&
+             (subsystem.hanger === "Small Fighter" || subsystem.hanger === "Medium Fighter" || subsystem.hanger === "Large Fighter" || subsystem.hanger === "Corvette") &&
+              <div key={name + "Cap"} className="w-full text-red-500 text-right">Total hangar capacity: {((property ?? 0) as number) * subsystem.count}</div>
+            }
+            </>
           ))}
         </div>
 

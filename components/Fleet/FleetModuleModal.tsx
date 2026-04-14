@@ -63,7 +63,7 @@ export default function FleetModuleModal({
     
     return hangars.map(h => ({
       type: h.hanger,
-      capacity: h.capacity
+      capacity: h.capacity * h.count
     }));
   }
 

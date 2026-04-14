@@ -469,5 +469,18 @@ export const changelog: readonly Changelog[] = [
       "Added Swordbearer, Dubhe, Megrez, although they're missing all of their modules",
       "Added simple login user functionality"
     ]
+  },
+  {
+    type: "minor release",
+    version: "3.2.4",
+    release: "2026-04-14",
+    notes: [
+      "Fixed a longstanding annoyance: CtG and ST59 both have hangar modules with \"multiple\" hangars that each hold one or two, so the intuitive number of total aircraft would be off.",
+      "Fixed above in fleet builder to allow the correct number of aircraft.",
+      "Fixed above in admin view to properly show number of aircraft.",
+      "Fixed above in module view to have a explanatory note.",
+      "Also fixed admin view not editing subsystems properly.",
+      "Also fixed some linter stuff, removing the last Vue artifacts, hopefully."
+    ]
   }
 ];
