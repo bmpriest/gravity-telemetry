@@ -102,9 +102,10 @@ export function getCarrierCapacity(ship: AllShip, activeModuleIds?: number[]): C
         const hangerSub = sub as AircraftSubsystem;
         if (!["Small Fighter", "Medium Fighter", "Large Fighter", "Corvette"].includes(hangerSub.hanger)) continue;
         const hangerType = hangerSub.hanger as CarrierCapacity["type"];
+        const totalHangerSlots = hangerSub.capacity * hangerSub.count;
         const existing = capacities.find((c) => c.type === hangerType);
-        if (existing) existing.capacity += hangerSub.capacity;
-        else capacities.push({ type: hangerType, capacity: hangerSub.capacity });
+        if (existing) existing.capacity += totalHangerSlots;
+        else capacities.push({ type: hangerType, capacity: totalHangerSlots });
       }
     }
   }
