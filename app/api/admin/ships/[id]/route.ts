@@ -36,10 +36,12 @@ function buildUpdateData(body: Record<string, any>) {
   if ("serviceLimit" in body) data.serviceLimit = asInt(body.serviceLimit, "serviceLimit");
   if ("fighterType" in body) data.fighterType = parseFighterSize(body.fighterType);
   if ("fightersPerSquadron" in body) data.fightersPerSquadron = asIntOrNull(body.fightersPerSquadron);
+  if ("dualPurpose" in body) data.dualPurpose = !!body.dualPurpose;
   if ("smallFighterCapacity" in body) data.smallFighterCapacity = asIntOrNull(body.smallFighterCapacity);
   if ("mediumFighterCapacity" in body) data.mediumFighterCapacity = asIntOrNull(body.mediumFighterCapacity);
   if ("largeFighterCapacity" in body) data.largeFighterCapacity = asIntOrNull(body.largeFighterCapacity);
   if ("corvetteCapacity" in body) data.corvetteCapacity = asIntOrNull(body.corvetteCapacity);
+  if ("onlyCarriesDualPurpose" in body) data.onlyCarriesDualPurpose = !!body.onlyCarriesDualPurpose;
   return data;
 }
 

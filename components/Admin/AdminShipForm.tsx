@@ -37,10 +37,12 @@ export interface ShipFormValues {
   serviceLimit: number;
   fighterType: string | null;
   fightersPerSquadron: number | null;
+  dualPurpose: boolean;
   smallFighterCapacity: number | null;
   mediumFighterCapacity: number | null;
   largeFighterCapacity: number | null;
   corvetteCapacity: number | null;
+  onlyCarriesDualPurpose: boolean;
 }
 
 interface Props {
@@ -70,10 +72,12 @@ function emptyForm(): ShipFormValues {
     serviceLimit: 1,
     fighterType: null,
     fightersPerSquadron: null,
+    dualPurpose: false,
     smallFighterCapacity: null,
     mediumFighterCapacity: null,
     largeFighterCapacity: null,
     corvetteCapacity: null,
+    onlyCarriesDualPurpose: false,
   };
 }
 
@@ -99,10 +103,12 @@ function fromShip(s: AllShip, manufacturers: Manufacturer[]): ShipFormValues {
     serviceLimit: s.serviceLimit,
     fighterType: any.fighterType ?? null,
     fightersPerSquadron: any.fightersPerSquadron ?? null,
+    dualPurpose: any.dualPurpose ?? false,
     smallFighterCapacity: any.smallFighterCapacity ?? null,
     mediumFighterCapacity: any.mediumFighterCapacity ?? null,
     largeFighterCapacity: any.largeFighterCapacity ?? null,
     corvetteCapacity: any.corvetteCapacity ?? null,
+    onlyCarriesDualPurpose: any.onlyCarriesDualPurpose ?? false,
   };
 }
 
@@ -412,6 +418,17 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
                   className={inputCls}
                 />
               </Field>
+              <Field label="Attributes">
+                <label className="flex h-full items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.dualPurpose}
+                    onChange={(e) => update("dualPurpose", e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-300 transition duration-500 dark:border-neutral-600 dark:bg-neutral-900"
+                  />
+                  Dual-purpose fighter
+                </label>
+              </Field>
             </>
           )}
           {canCarrySomething && (
@@ -451,6 +468,17 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
                   onChange={(e) => update("corvetteCapacity", e.target.value === "" ? null : Number(e.target.value))}
                   className={inputCls}
                 />
+              </Field>
+              <Field label="Carrier settings">
+                <label className="flex h-full items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={values.onlyCarriesDualPurpose}
+                    onChange={(e) => update("onlyCarriesDualPurpose", e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-300 transition duration-500 dark:border-neutral-600 dark:bg-neutral-900"
+                  />
+                  Only carries dual-purpose fighters
+                </label>
               </Field>
             </>
           )}

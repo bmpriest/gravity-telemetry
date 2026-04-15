@@ -34,6 +34,7 @@ interface Body {
   alpha?: number | null;
   hanger?: string | null;
   capacity?: number | null;
+  onlyCarriesDualPurpose?: boolean;
   repair?: number | null;
   cooldown?: number | null;
   lockOnTime?: number | null;
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         alpha: asIntOrNull(body.alpha),
         hanger: asStringOrNull(body.hanger),
         capacity: asIntOrNull(body.capacity),
+        onlyCarriesDualPurpose: !!body.onlyCarriesDualPurpose,
         repair: asIntOrNull(body.repair),
         cooldown: asFloatOrNull(body.cooldown),
         lockOnTime: asFloatOrNull(body.lockOnTime),

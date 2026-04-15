@@ -157,18 +157,21 @@ export const useFleetStore = create<FleetState>()(
       const capacities = getCarrierCapacity(carrierShip, activeModuleIds);
       const currentLoads = get().fleet.carrierLoads[carrierInstanceId] ?? [];
 
-      const allAircraftTypes = currentLoads.map(inst => {
+      const allAircraft = currentLoads.map(inst => {
         const s = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
-        return s ? getCarriableType(s) : null;
-      }).filter((t): t is CarrierCapacity["type"] => t !== null);
+        const type = s ? getCarriableType(s) : null;
+        const isDP = !!(s as any)?.dualPurpose;
+        return { type, isDP };
+      }).filter((a): a is { type: CarrierCapacity["type"]; isDP: boolean } => a.type !== null);
 
-      allAircraftTypes.push(carriableType);
-      allAircraftTypes.sort((a, b) => typeOrder[a] - typeOrder[b]);
+      const targetShipIsDP = !!(ship as any).dualPurpose;
+      allAircraft.push({ type: carriableType, isDP: targetShipIsDP });
+      allAircraft.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
 
       const tempCapacities = capacities.map(c => ({ ...c }));
-      for (const airType of allAircraftTypes) {
+      for (const air of allAircraft) {
         const fitSlot = tempCapacities
-          .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, airType))
+          .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, air.type, c.onlyCarriesDualPurpose, air.isDP))
           .sort((a, b) => typeOrder[a.type] - typeOrder[b.type])[0];
         
         if (!fitSlot) return `Carrier is full for ${carriableType}s.`;
@@ -227,8 +230,10 @@ export const useFleetStore = create<FleetState>()(
           
           const aircraft = currentLoads.map(inst => {
             const ship = ships.find(s => s.id === inst.shipId && s.variant === inst.variant);
-            return { inst, type: ship ? getCarriableType(ship) : null };
-          }).filter((a): a is { inst: FleetShipInstance; type: CarrierCapacity["type"] } => a.type !== null);
+            const type = ship ? getCarriableType(ship) : null;
+            const isDP = !!(ship as any)?.dualPurpose;
+            return { inst, type, isDP };
+          }).filter((a): a is { inst: FleetShipInstance; type: CarrierCapacity["type"]; isDP: boolean } => a.type !== null);
 
           aircraft.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
 
@@ -237,7 +242,7 @@ export const useFleetStore = create<FleetState>()(
           
           for (const item of aircraft) {
             const fitSlot = tempCapacities
-              .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type))
+              .filter(c => c.capacity > 0 && canHangarHoldAircraft(c.type, item.type, c.onlyCarriesDualPurpose, item.isDP))
               .sort((a, b) => typeOrder[a.type] - typeOrder[b.type])[0];
             
             if (fitSlot) {

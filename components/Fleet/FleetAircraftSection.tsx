@@ -209,7 +209,8 @@ function UnitAircraftSlots({
       const aircraftType = getCarriableType(ship);
       if (!aircraftType) return;
 
-      const canFit = assignments.some(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, aircraftType));
+      const isDP = !!(ship as any).dualPurpose;
+      const canFit = assignments.some(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, aircraftType, a.onlyCarriesDualPurpose, isDP));
       if (!canFit) return;
 
       if (data.isMoveAircraft) {

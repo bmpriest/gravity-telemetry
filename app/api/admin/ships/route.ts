@@ -26,10 +26,12 @@ interface Body {
   serviceLimit: number;
   fighterType?: string | null;
   fightersPerSquadron?: number | null;
+  dualPurpose?: boolean;
   smallFighterCapacity?: number | null;
   mediumFighterCapacity?: number | null;
   largeFighterCapacity?: number | null;
   corvetteCapacity?: number | null;
+  onlyCarriesDualPurpose?: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -66,10 +68,12 @@ export async function POST(req: NextRequest) {
         serviceLimit: asInt(body.serviceLimit, "serviceLimit"),
         fighterType: parseFighterSize(body.fighterType),
         fightersPerSquadron: asIntOrNull(body.fightersPerSquadron),
+        dualPurpose: !!body.dualPurpose,
         smallFighterCapacity: asIntOrNull(body.smallFighterCapacity),
         mediumFighterCapacity: asIntOrNull(body.mediumFighterCapacity),
         largeFighterCapacity: asIntOrNull(body.largeFighterCapacity),
         corvetteCapacity: asIntOrNull(body.corvetteCapacity),
+        onlyCarriesDualPurpose: !!body.onlyCarriesDualPurpose,
       },
     });
 

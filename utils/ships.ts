@@ -48,6 +48,7 @@ export interface Fighter extends Ship {
   fighterType: "Small" | "Medium" | "Large";
   /** Number of fighters per unit. */
   fightersPerSquadron: number;
+  dualPurpose: boolean;
 }
 
 export interface Corvette extends Ship {
@@ -61,16 +62,19 @@ export interface CapitalShip extends Ship {
 export interface MediumFighterCapitalShip extends CapitalShip {
   /** Number of medium fighters held. */
   mediumFighterCapacity: number;
+  onlyCarriesDualPurpose: boolean;
 }
 
 export interface LargeFighterCapitalShip extends CapitalShip {
   /** Number of large fighters held. */
   largeFighterCapacity: number;
+  onlyCarriesDualPurpose: boolean;
 }
 
 export interface CorvetteCapitalShip extends CapitalShip {
   /** Number of corvettes held. */
   corvetteCapacity: number;
+  onlyCarriesDualPurpose?: boolean;
 }
 
 export const attributes = {
@@ -220,6 +224,7 @@ export interface AircraftSubsystem extends Subsystem {
   type: "hanger";
   hanger: "Small Fighter" | "Medium Fighter" | "Large Fighter" | "Corvette";
   capacity: number;
+  onlyCarriesDualPurpose?: boolean;
 }
 
 export interface MiscSubsytem extends Subsystem {

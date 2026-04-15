@@ -89,6 +89,7 @@ interface SubsystemFormValues {
   alpha: number | null;
   hanger: string;
   capacity: number | null;
+  onlyCarriesDualPurpose: boolean;
   repair: number | null;
   cooldown: number | null;
   lockOnTime: number | null;
@@ -135,6 +136,7 @@ function emptySubsystem(): SubsystemFormValues {
     alpha: null,
     hanger: "",
     capacity: null,
+    onlyCarriesDualPurpose: false,
     repair: null,
     cooldown: null,
     lockOnTime: null,
@@ -191,6 +193,7 @@ function subsystemToForm(s: any): SubsystemFormValues {
     alpha: s.alpha ?? null,
     hanger: s.hanger ?? "",
     capacity: s.capacity ?? null,
+    onlyCarriesDualPurpose: !!s.onlyCarriesDualPurpose,
     repair: s.repair ?? null,
     cooldown: stats.cooldown ?? null,
     lockOnTime: stats.lockOnTime ?? null,
@@ -235,6 +238,7 @@ function subsystemToPayload(v: SubsystemFormValues) {
     alpha: v.alpha,
     hanger: v.hanger || null,
     capacity: v.capacity,
+    onlyCarriesDualPurpose: v.onlyCarriesDualPurpose,
     repair: v.repair,
     cooldown: v.cooldown,
     lockOnTime: v.lockOnTime,
@@ -673,6 +677,14 @@ function SubsystemEditor({ values, setValues, onCancel, onSave, isNew }: Subsyst
             </Mini>
             <Mini label="Repair (UAV only)">
               <NumInput value={values.repair} onChange={(n) => update("repair", n)} />
+            </Mini>
+            <Mini label="Dual-purpose only">
+              <input
+                type="checkbox"
+                checked={values.onlyCarriesDualPurpose}
+                onChange={(e) => update("onlyCarriesDualPurpose", e.target.checked)}
+                className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-600 dark:bg-neutral-900"
+              />
             </Mini>
           </>
         )}

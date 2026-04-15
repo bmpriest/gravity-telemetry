@@ -28,6 +28,7 @@ function buildUpdateData(body: Record<string, any>) {
   if ("alpha" in body) data.alpha = asIntOrNull(body.alpha);
   if ("hanger" in body) data.hanger = asStringOrNull(body.hanger);
   if ("capacity" in body) data.capacity = asIntOrNull(body.capacity);
+  if ("onlyCarriesDualPurpose" in body) data.onlyCarriesDualPurpose = !!body.onlyCarriesDualPurpose;
   if ("repair" in body) data.repair = asIntOrNull(body.repair);
   if ("cooldown" in body) data.cooldown = asFloatOrNull(body.cooldown);
   if ("lockOnTime" in body) data.lockOnTime = asFloatOrNull(body.lockOnTime);

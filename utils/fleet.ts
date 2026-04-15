@@ -27,6 +27,7 @@ export interface Fleet {
 export interface CarrierCapacity {
   type: "Small Fighter" | "Medium Fighter" | "Large Fighter" | "Corvette";
   capacity: number;
+  onlyCarriesDualPurpose: boolean;
 }
 
 export const shipTypeOrder = ["Fighter", "Corvette", "Frigate", "Destroyer", "Cruiser", "Battlecruiser", "Auxiliary Ship", "Carrier", "Battleship"] as const;
@@ -75,19 +76,21 @@ export function getCarrierCapacity(ship: AllShip, activeModuleIds?: number[]): C
 
   if ("mediumFighterCapacity" in ship) {
     const cap = (ship as { mediumFighterCapacity: number }).mediumFighterCapacity;
-    if (cap > 0) capacities.push({ type: "Medium Fighter", capacity: cap });
+    const onlyDP = !!(ship as { onlyCarriesDualPurpose: boolean }).onlyCarriesDualPurpose;
+    if (cap > 0) capacities.push({ type: "Medium Fighter", capacity: cap, onlyCarriesDualPurpose: onlyDP });
   }
   if ("largeFighterCapacity" in ship) {
     const cap = (ship as { largeFighterCapacity: number }).largeFighterCapacity;
-    if (cap > 0) capacities.push({ type: "Large Fighter", capacity: cap });
+    const onlyDP = !!(ship as { onlyCarriesDualPurpose: boolean }).onlyCarriesDualPurpose;
+    if (cap > 0) capacities.push({ type: "Large Fighter", capacity: cap, onlyCarriesDualPurpose: onlyDP });
   }
   if ("corvetteCapacity" in ship) {
     const cap = (ship as { corvetteCapacity: number }).corvetteCapacity;
-    if (cap > 0) capacities.push({ type: "Corvette", capacity: cap });
+    if (cap > 0) capacities.push({ type: "Corvette", capacity: cap, onlyCarriesDualPurpose: false });
   }
 
   if ("modules" in ship) {
-    for (const mod of ship.modules) {
+    for (const mod of (ship as { modules: any[] }).modules) {
       if (mod.type === "unknown") continue;
       
       if (activeModuleIds) {
@@ -103,9 +106,14 @@ export function getCarrierCapacity(ship: AllShip, activeModuleIds?: number[]): C
         if (!["Small Fighter", "Medium Fighter", "Large Fighter", "Corvette"].includes(hangerSub.hanger)) continue;
         const hangerType = hangerSub.hanger as CarrierCapacity["type"];
         const totalHangerSlots = hangerSub.capacity * hangerSub.count;
-        const existing = capacities.find((c) => c.type === hangerType);
+        const onlyDP = !!hangerSub.onlyCarriesDualPurpose;
+
+        // Note: multiple modules might contribute to the same hangerType.
+        // If they have different onlyCarriesDualPurpose settings, we'll keep
+        // them as separate CarrierCapacity entries to ensure the filter applies correctly per slot.
+        const existing = capacities.find((c) => c.type === hangerType && c.onlyCarriesDualPurpose === onlyDP);
         if (existing) existing.capacity += totalHangerSlots;
-        else capacities.push({ type: hangerType, capacity: totalHangerSlots });
+        else capacities.push({ type: hangerType, capacity: totalHangerSlots, onlyCarriesDualPurpose: onlyDP });
       }
     }
   }
@@ -128,7 +136,14 @@ export function getCarriableType(ship: AllShip): CarrierCapacity["type"] | null 
   return null;
 }
 
-export function canHangarHoldAircraft(hangarType: CarrierCapacity["type"], aircraftType: CarrierCapacity["type"]): boolean {
+export function canHangarHoldAircraft(
+  hangarType: CarrierCapacity["type"],
+  aircraftType: CarrierCapacity["type"],
+  hangarOnlyDP: boolean,
+  aircraftIsDP: boolean,
+): boolean {
+  if (hangarOnlyDP && !aircraftIsDP) return false;
+
   if (hangarType === aircraftType) return true;
   if (hangarType === "Large Fighter") {
     return aircraftType === "Medium Fighter" || aircraftType === "Small Fighter";
@@ -142,6 +157,7 @@ export function canHangarHoldAircraft(hangarType: CarrierCapacity["type"], aircr
 export interface HangarAssignment {
   hangarType: CarrierCapacity["type"];
   capacity: number;
+  onlyCarriesDualPurpose: boolean;
   ships: AllShip[];
   instances: FleetShipInstance[];
 }
@@ -150,6 +166,7 @@ export function getHangarAssignments(capacities: CarrierCapacity[], loadedInstan
   const assignments: HangarAssignment[] = capacities.map(c => ({
     hangarType: c.type,
     capacity: c.capacity,
+    onlyCarriesDualPurpose: c.onlyCarriesDualPurpose,
     ships: [],
     instances: []
   }));
@@ -157,15 +174,17 @@ export function getHangarAssignments(capacities: CarrierCapacity[], loadedInstan
   // Sort aircraft by size (Smallest to Largest) to fill smallest slots first
   const aircraft = loadedInstances.map(inst => {
     const ship = allShips.find(s => s.id === inst.shipId && s.variant === inst.variant);
-    return { inst, ship, type: ship ? getCarriableType(ship) : null };
-  }).filter((a): a is { inst: FleetShipInstance; ship: AllShip; type: CarrierCapacity["type"] } => a.type !== null);
+    const type = ship ? getCarriableType(ship) : null;
+    const isDP = !!(ship as any)?.dualPurpose;
+    return { inst, ship, type, isDP };
+  }).filter((a): a is { inst: FleetShipInstance; ship: AllShip; type: CarrierCapacity["type"]; isDP: boolean } => a.type !== null);
 
   const order: Record<string, number> = { "Small Fighter": 0, "Medium Fighter": 1, "Large Fighter": 2, "Corvette": 3 };
   aircraft.sort((a, b) => order[a.type] - order[b.type]);
 
   for (const item of aircraft) {
     const compatibleAssignments = assignments
-      .filter(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, item.type))
+      .filter(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, item.type, !!(a as any).onlyCarriesDualPurpose, item.isDP))
       .sort((a, b) => order[a.hangarType] - order[b.hangarType]);
     
     if (compatibleAssignments[0]) {

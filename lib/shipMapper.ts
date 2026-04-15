@@ -36,6 +36,7 @@ interface DbSubsystem {
   alpha: number | null;
   hanger: string | null;
   capacity: number | null;
+  onlyCarriesDualPurpose: boolean;
   repair: number | null;
   cooldown: number | null;
   lockOnTime: number | null;
@@ -90,10 +91,12 @@ interface DbShip {
   serviceLimit: number;
   fighterType: "Small" | "Medium" | "Large" | null;
   fightersPerSquadron: number | null;
+  dualPurpose: boolean;
   smallFighterCapacity: number | null;
   mediumFighterCapacity: number | null;
   largeFighterCapacity: number | null;
   corvetteCapacity: number | null;
+  onlyCarriesDualPurpose: boolean;
   modules: DbModule[];
 }
 
@@ -224,6 +227,7 @@ function mapSubsystem(sub: DbSubsystem): any {
         name: sub.name,
         hanger: sub.hanger,
         capacity: sub.capacity ?? 0,
+        onlyCarriesDualPurpose: sub.onlyCarriesDualPurpose,
         attributes: attrs,
       };
     }
@@ -403,6 +407,7 @@ export function mapShip(ship: DbShip, siblings?: Map<string, string>): AllShip {
       type: "Fighter",
       fighterType: ship.fighterType ?? "Small",
       fightersPerSquadron: ship.fightersPerSquadron ?? 0,
+      dualPurpose: ship.dualPurpose,
     } as AllShip;
   }
 
@@ -414,8 +419,14 @@ export function mapShip(ship: DbShip, siblings?: Map<string, string>): AllShip {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cap: any = { ...base, type: displayType };
     if (ship.smallFighterCapacity !== null) cap.smallFighterCapacity = ship.smallFighterCapacity;
-    if (ship.mediumFighterCapacity !== null) cap.mediumFighterCapacity = ship.mediumFighterCapacity;
-    if (ship.largeFighterCapacity !== null) cap.largeFighterCapacity = ship.largeFighterCapacity;
+    if (ship.mediumFighterCapacity !== null) {
+      cap.mediumFighterCapacity = ship.mediumFighterCapacity;
+      cap.onlyCarriesDualPurpose = ship.onlyCarriesDualPurpose;
+    }
+    if (ship.largeFighterCapacity !== null) {
+      cap.largeFighterCapacity = ship.largeFighterCapacity;
+      cap.onlyCarriesDualPurpose = ship.onlyCarriesDualPurpose;
+    }
     if (ship.corvetteCapacity !== null) cap.corvetteCapacity = ship.corvetteCapacity;
     return cap as AllShip;
   }
@@ -424,6 +435,7 @@ export function mapShip(ship: DbShip, siblings?: Map<string, string>): AllShip {
   return {
     ...base,
     type: displayType,
+    onlyCarriesDualPurpose: ship.onlyCarriesDualPurpose,
     modules: ship.modules.map(mapModule),
   } as AllShip;
 }

@@ -42,14 +42,16 @@ export default function FleetCarrierModal({ carrierInstances, currentLoads, ship
     availableShipsPool.filter((ship) => {
       const carriableType = getCarriableType(ship);
       if (!carriableType) return false;
-      return capacity.some((slot) => canHangarHoldAircraft(slot.type, carriableType));
+      const isDP = !!(ship as any).dualPurpose;
+      return capacity.some((slot) => canHangarHoldAircraft(slot.type, carriableType, slot.onlyCarriesDualPurpose, isDP));
     }),
   [availableShipsPool, capacity]);
 
   function canLoad(ship: AllShip): boolean {
     const carriableType = getCarriableType(ship);
     if (!carriableType) return false;
-    const canFit = assignments.some(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, carriableType));
+    const isDP = !!(ship as any).dualPurpose;
+    const canFit = assignments.some(a => a.ships.length < a.capacity && canHangarHoldAircraft(a.hangarType, carriableType, (a as any).onlyCarriesDualPurpose, isDP));
     if (!canFit) return false;
     if (getShipFleetCount(ship) >= ship.serviceLimit) return false;
     return true;

@@ -482,5 +482,13 @@ export const changelog: readonly Changelog[] = [
       "Also fixed admin view not editing subsystems properly.",
       "Also fixed some linter stuff, removing the last Vue artifacts, hopefully."
     ]
+  },
+  {
+    type: "minor release",
+    version: "3.2.5",
+    release: "2026-04-14",
+    notes: [
+      "Added dual-purpose aircraft"
+    ]
   }
 ];

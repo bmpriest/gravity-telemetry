@@ -135,12 +135,14 @@ model Ship {
   // Fighter-only
   fighterType         FighterSize?
   fightersPerSquadron Int?
+  dualPurpose         Boolean     @default(false)
 
   // Carrier capacities (Frigate / Destroyer / Cruiser variants)
   smallFighterCapacity  Int?
   mediumFighterCapacity Int?
   largeFighterCapacity  Int?
   corvetteCapacity      Int?
+  onlyCarriesDualPurpose Boolean @default(false)
 
   modules        ShipModule[]
   shipBlueprints ShipBlueprint[]
@@ -209,6 +211,7 @@ model Subsystem {
   // Hanger / UAV fields
   hanger   String?
   capacity Int?
+  onlyCarriesDualPurpose Boolean @default(false)
   // Repair UAVs only
   repair   Int?
 
