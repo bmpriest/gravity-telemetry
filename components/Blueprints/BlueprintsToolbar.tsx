@@ -138,23 +138,31 @@ export default function BlueprintsToolbar({
         ref={toolbarRef}
         className={`sticky top-20 z-[2] mt-4 flex flex-wrap items-center justify-center gap-4 rounded-full border-transparent bg-body px-5 py-2 transition duration-500 xl:flex-nowrap ${isSticky ? "shadow dark:border dark:border-neutral-700" : ""}`}
       >
-        <BlueprintsSettings
-          close={closeSettings}
-          data={data}
-          accounts={accounts}
-          accountIndex={accountIndex}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onList={onList}
-          onVariants={onVariants}
-          onExposeModules={onExposeModules}
-          onEditName={(acc) => setEditName(acc)}
-          onDelete={(acc) => setDeleteModal(acc)}
-          onCreateNew={onCreateNew}
-        />
-        <div onClick={() => closeOptions(true, true, false)}>
+        <div onClick={(e) => e.stopPropagation()}>
+          <BlueprintsSettings
+            close={closeSettings}
+            data={data}
+            accounts={accounts}
+            accountIndex={accountIndex}
+            hasUnsavedChanges={hasUnsavedChanges}
+            onList={onList}
+            onVariants={onVariants}
+            onExposeModules={onExposeModules}
+            onEditName={(acc) => setEditName(acc)}
+            onDelete={(acc) => setDeleteModal(acc)}
+            onCreateNew={onCreateNew}
+          />
+        </div>
+        <div onClick={(e) => {
+          e.stopPropagation();
+          closeOptions(true, true, false);
+        }}>
           <BlueprintsSort close={closeSorters} onSort={onSort} />
         </div>
-        <div onClick={() => closeOptions(true, false, true)}>
+        <div onClick={(e) => {
+          e.stopPropagation();
+          closeOptions(true, false, true);
+        }}>
           <BlueprintsFilter close={closeFilters} onFilter={onFilter} />
         </div>
         <BlueprintsSearch onSearch={onSearch} />

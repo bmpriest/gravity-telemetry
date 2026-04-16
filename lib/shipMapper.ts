@@ -97,6 +97,8 @@ interface DbShip {
   largeFighterCapacity: number | null;
   corvetteCapacity: number | null;
   onlyCarriesDualPurpose: boolean;
+  isFragmentUnlocked: boolean;
+  fragments: { fragmentId: number; quantityRequired: number }[];
   modules: DbModule[];
 }
 
@@ -106,6 +108,12 @@ interface DbShip {
  */
 export const shipInclude = {
   manufacturer: true,
+  fragments: {
+    select: {
+      fragmentId: true,
+      quantityRequired: true,
+    }
+  },
   modules: {
     include: {
       sources: true,
@@ -397,6 +405,8 @@ export function mapShip(ship: DbShip, siblings?: Map<string, string>): AllShip {
     row: ship.row,
     commandPoints: ship.commandPoints,
     serviceLimit: ship.serviceLimit,
+    isFragmentUnlocked: ship.isFragmentUnlocked,
+    fragments: ship.fragments ?? [],
   };
 
   const displayType = shipTypeToDisplay(ship.type);

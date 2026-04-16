@@ -33,6 +33,11 @@ interface FleetState {
   setModule: (instanceId: string, category: string, moduleId: number, ships: AllShip[]) => void;
   saveFleet: () => Promise<void>;
 
+  setAngulum: (isAngulum: boolean) => void;
+  setActive: (isActive: boolean) => void;
+  updateFleet: (updates: Partial<Fleet>) => void;
+  reorderFleets: (fleetIds: string[]) => void;
+
   loadFleet: (fleetId: string) => void;
   deleteFleet: (fleetId: string) => Promise<void>;
   newFleet: () => void;
@@ -303,6 +308,54 @@ export const useFleetStore = create<FleetState>()(
       set({ savedFleets });
     },
 
+    setAngulum(isAngulum) {
+      set((state) => ({
+        fleet: {
+          ...state.fleet,
+          isAngulum,
+          maxCommandPoints: isAngulum ? 350 : 400,
+        },
+      }));
+    },
+
+    setActive(isActive) {
+      set((state) => ({
+        fleet: {
+          ...state.fleet,
+          isActive,
+        },
+      }));
+    },
+
+    updateFleet(updates) {
+      set((state) => ({
+        fleet: {
+          ...state.fleet,
+          ...updates,
+        },
+      }));
+    },
+
+    reorderFleets(fleetIds) {
+      set((state) => {
+        const newSavedFleets = [...state.savedFleets];
+        fleetIds.forEach((id, index) => {
+          const fleet = newSavedFleets.find((f) => f.id === id);
+          if (fleet) fleet.order = index;
+        });
+        newSavedFleets.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        
+        if (state.syncedWithServer) {
+          // We might want to send a batch update to the server here
+          // For now, let's just update local state and let subsequent saves handle it
+        } else if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(newSavedFleets));
+        }
+        
+        return { savedFleets: newSavedFleets };
+      });
+    },
+
     loadFleet(fleetId) {
       const saved = get().savedFleets.find((f) => f.id === fleetId);
       if (saved) set({ fleet: JSON.parse(JSON.stringify(saved)) });
@@ -344,6 +397,9 @@ export const useFleetStore = create<FleetState>()(
           if (!f.rows.reinforcements) f.rows.reinforcements = [];
           if (!f.moduleConfig) f.moduleConfig = {};
           if (!f.carrierLoads) f.carrierLoads = {};
+          if (f.isAngulum === undefined) f.isAngulum = false;
+          if (f.isActive === undefined) f.isActive = false;
+          if (f.order === undefined) f.order = 0;
           return f;
         };
 
@@ -352,7 +408,7 @@ export const useFleetStore = create<FleetState>()(
         let fleet: Fleet = currentRaw ? (JSON.parse(currentRaw) as Fleet) : createEmptyFleet();
 
         fleet = sanitize(fleet);
-        savedFleets = savedFleets.map(sanitize);
+        savedFleets = savedFleets.map(sanitize).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
         set({ fleet, savedFleets });
       } catch {

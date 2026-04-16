@@ -42,6 +42,18 @@ function buildUpdateData(body: Record<string, any>) {
   if ("largeFighterCapacity" in body) data.largeFighterCapacity = asIntOrNull(body.largeFighterCapacity);
   if ("corvetteCapacity" in body) data.corvetteCapacity = asIntOrNull(body.corvetteCapacity);
   if ("onlyCarriesDualPurpose" in body) data.onlyCarriesDualPurpose = !!body.onlyCarriesDualPurpose;
+  if ("isFragmentUnlocked" in body) data.isFragmentUnlocked = !!body.isFragmentUnlocked;
+  
+  if ("fragments" in body) {
+    data.fragments = {
+      deleteMany: {}, // Clear existing
+      create: Array.isArray(body.fragments) ? body.fragments.map((f: any) => ({
+        fragmentId: asInt(f.fragmentId, "fragmentId"),
+        quantityRequired: asInt(f.quantityRequired, "quantityRequired"),
+      })) : [],
+    };
+  }
+
   return data;
 }
 

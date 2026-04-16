@@ -20,7 +20,8 @@
  *         modules: [{ moduleId: number, unlocked: boolean }, ...]
  *       },
  *       ...
- *     ]
+ *     ],
+ *     userFragments?: [{ fragmentId: number, quantityOwned: number }, ...]
  *   }
  *
  * Auth is via the session cookie — no more uid/accessToken in the body.
@@ -39,11 +40,16 @@ interface ShipInput {
   mirrorTechPoints: boolean;
   modules: ModuleInput[];
 }
+interface FragmentInput {
+  fragmentId: number;
+  quantityOwned: number;
+}
 interface AccountInput {
   accountIndex: number;
   accountName: string;
   unassignedTp: [number, number, number, number, number, number, number, number, number];
   ships: ShipInput[];
+  userFragments?: FragmentInput[];
 }
 
 const TP_COLUMNS = [
@@ -71,6 +77,7 @@ async function loadAccountsForUser(userId: string) {
       shipBlueprints: {
         include: { moduleBlueprints: true },
       },
+      userFragments: true,
     },
   });
 
@@ -88,6 +95,10 @@ async function loadAccountsForUser(userId: string) {
         moduleId: mb.moduleId,
         unlocked: mb.unlocked,
       })),
+    })),
+    userFragments: a.userFragments.map((uf) => ({
+      fragmentId: uf.fragmentId,
+      quantityOwned: uf.quantityOwned,
     })),
   }));
 }
@@ -154,6 +165,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (body.userFragments) {
+      await prisma.userFragment.deleteMany({ where: { accountId: account.id } });
+      if (body.userFragments.length > 0) {
+        await prisma.userFragment.createMany({
+          data: body.userFragments.map((f) => ({
+            accountId: account.id,
+            fragmentId: f.fragmentId,
+            quantityOwned: f.quantityOwned,
+          })),
+        });
+      }
+    }
+
     return { data: await loadAccountsForUser(user.id) };
   });
 }
+

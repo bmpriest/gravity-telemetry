@@ -12,6 +12,9 @@ export interface Fleet {
   id: string;
   name: string;
   maxCommandPoints: number;
+  isAngulum: boolean;
+  isActive: boolean;
+  order: number;
   rows: {
     front: FleetShipInstance[];
     middle: FleetShipInstance[];
@@ -57,6 +60,9 @@ export function createEmptyFleet(): Fleet {
     id: generateFleetId(),
     name: "New Fleet",
     maxCommandPoints: 400,
+    isAngulum: false,
+    isActive: false,
+    order: 0,
     rows: { front: [], middle: [], back: [], reinforcements: [] },
     carrierLoads: {},
     moduleConfig: {}
@@ -256,4 +262,141 @@ export function getRowLabel(row: string): string {
 
 export function getRowKey(row: string): FleetRow {
   return row.toLowerCase() as FleetRow;
+}
+
+export function getFleetCP(fleet: Fleet, allShips: AllShip[]): number {
+  const cpInstances = [...fleet.rows.front, ...fleet.rows.middle, ...fleet.rows.back];
+  return cpInstances.reduce((total, instance) => {
+    const ship = allShips.find((s) => s.id === instance.shipId && s.variant === instance.variant);
+    return total + (ship?.commandPoints ?? 0);
+  }, 0);
+}
+
+export interface FleetValidationError {
+  type: "CP" | "BuildLimit" | "AngulumBlueprint" | "AuxiliaryShip";
+  message: string;
+}
+
+export function getFleetValidationErrors(
+  fleetId: string,
+  allSavedFleets: Fleet[],
+  allShips: AllShip[]
+): FleetValidationError[] {
+  const errors: FleetValidationError[] = [];
+  const fleet = allSavedFleets.find((f) => f.id === fleetId);
+  if (!fleet) return errors;
+
+  // 1. Angulum Max CP
+  if (fleet.isAngulum) {
+    const currentCP = getFleetCP(fleet, allShips);
+    if (currentCP > 350) {
+      errors.push({ type: "CP", message: "Angulum fleets are capped at 350 CP." });
+    }
+
+    // 2. Angulum Auxiliary Ship Requirement
+    const allInstances = [...fleet.rows.front, ...fleet.rows.middle, ...fleet.rows.back, ...fleet.rows.reinforcements];
+    const hasAuxiliary = allInstances.some(inst => {
+      const ship = allShips.find(s => s.id === inst.shipId && s.variant === inst.variant);
+      return ship?.type === "Auxiliary Ship";
+    });
+    if (!hasAuxiliary) {
+      errors.push({ type: "AuxiliaryShip", message: "Angulum fleets require at least one auxiliary ship." });
+    }
+  }
+
+  // If not Active or Angulum, no further validation
+  if (!fleet.isActive && !fleet.isAngulum) return errors;
+
+  // 3. Shared Build Limits (Active fleets)
+  if (fleet.isActive) {
+    const activeFleets = allSavedFleets.filter(f => f.isActive);
+    const allActiveInstances = activeFleets.flatMap(f => [
+      ...f.rows.front, 
+      ...f.rows.middle, 
+      ...f.rows.back, 
+      ...f.rows.reinforcements, 
+      ...Object.values(f.carrierLoads).flat()
+    ]);
+    
+    const myInstances = [
+      ...fleet.rows.front, 
+      ...fleet.rows.middle, 
+      ...fleet.rows.back, 
+      ...fleet.rows.reinforcements, 
+      ...Object.values(fleet.carrierLoads).flat()
+    ];
+    const checked = new Set<string>();
+    for (const inst of myInstances) {
+      const key = `${inst.shipId}-${inst.variant}`;
+      if (checked.has(key)) continue;
+      checked.add(key);
+      
+      const ship = allShips.find(s => s.id === inst.shipId && s.variant === inst.variant);
+      if (!ship) continue;
+      
+      const totalCount = allActiveInstances.filter(i => i.shipId === inst.shipId && i.variant === inst.variant).length;
+      if (totalCount > ship.serviceLimit) {
+        errors.push({ 
+          type: "BuildLimit", 
+          message: `Total ${ship.name} (${ship.variant}) across active fleets exceeds build limit of ${ship.serviceLimit}.` 
+        });
+      }
+    }
+  }
+
+  // 4. Blueprint Restriction (Angulum vs Active)
+  // "blueprints that are in an 'active' Angulum fleet cannot be used for any other fleets."
+  // "all variants are restricted to Angulum, if they are in service."
+  const activeFleets = allSavedFleets.filter(f => f.isActive && f.id !== fleetId);
+  const angulumFleets = allSavedFleets.filter(f => f.isAngulum && f.id !== fleetId);
+  
+  const myShipIds = new Set([
+    ...fleet.rows.front, 
+    ...fleet.rows.middle, 
+    ...fleet.rows.back, 
+    ...fleet.rows.reinforcements, 
+    ...Object.values(fleet.carrierLoads).flat()
+  ].map(i => i.shipId));
+  
+  if (fleet.isAngulum) {
+    // My ships cannot be in ANY Active fleet
+    const activeShipIds = new Set(activeFleets.flatMap(f => [
+      ...f.rows.front, 
+      ...f.rows.middle, 
+      ...f.rows.back, 
+      ...f.rows.reinforcements, 
+      ...Object.values(f.carrierLoads).flat()
+    ]).map(i => i.shipId));
+    
+    for (const shipId of myShipIds) {
+      if (activeShipIds.has(shipId)) {
+        const ship = allShips.find(s => s.id === shipId);
+        errors.push({ 
+          type: "AngulumBlueprint", 
+          message: `Blueprint for ${ship?.name} is used in an active fleet and cannot be used in Angulum.` 
+        });
+      }
+    }
+  } else if (fleet.isActive) {
+    // My ships cannot be in ANY Angulum fleet
+    const angulumShipIds = new Set(angulumFleets.flatMap(f => [
+      ...f.rows.front, 
+      ...f.rows.middle, 
+      ...f.rows.back, 
+      ...f.rows.reinforcements, 
+      ...Object.values(f.carrierLoads).flat()
+    ]).map(i => i.shipId));
+    
+    for (const shipId of myShipIds) {
+      if (angulumShipIds.has(shipId)) {
+        const ship = allShips.find(s => s.id === shipId);
+        errors.push({ 
+          type: "AngulumBlueprint", 
+          message: `Blueprint for ${ship?.name} is used in an Angulum fleet and cannot be used in active fleets.` 
+        });
+      }
+    }
+  }
+
+  return errors;
 }

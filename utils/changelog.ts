@@ -490,5 +490,13 @@ export const changelog: readonly Changelog[] = [
     notes: [
       "Added dual-purpose aircraft"
     ]
+  },
+  {
+    type: "minor release",
+    version: "3.3.0",
+    release: "2026-04-15",
+    notes: [
+      "First pass on adding blueprint fragments."
+    ]
   }
 ];

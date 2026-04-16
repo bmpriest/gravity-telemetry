@@ -4,41 +4,13 @@ import { useState } from "react";
 import AdminUsers from "@/components/Admin/AdminUsers";
 import AdminShips from "@/components/Admin/AdminShips";
 import AdminManufacturers from "@/components/Admin/AdminManufacturers";
+import AdminFragments from "@/components/Admin/AdminFragments";
 
 interface Props {
   currentUserId: string;
 }
 
-type Tab = "ships" | "manufacturers" | "users";
-
-export default function AdminClient({ currentUserId }: Props) {
-  const [tab, setTab] = useState<Tab>("ships");
-
-  return (
-    <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center p-4 sm:p-8">
-      <div className="flex w-full max-w-6xl flex-col gap-4">
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="text-3xl font-bold transition duration-500">Admin</h1>
-          <p className="text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">
-            Manage the ship catalogue, manufacturers, and reset user passwords.
-          </p>
-        </div>
-
-        <div role="tablist" className="flex justify-center gap-2">
-          <TabButton active={tab === "ships"} onClick={() => setTab("ships")}>Ships</TabButton>
-          <TabButton active={tab === "manufacturers"} onClick={() => setTab("manufacturers")}>Manufacturers</TabButton>
-          <TabButton active={tab === "users"} onClick={() => setTab("users")}>Users</TabButton>
-        </div>
-
-        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition duration-500 sm:p-6 dark:border-neutral-700 dark:bg-neutral-900">
-          {tab === "ships" && <AdminShips />}
-          {tab === "manufacturers" && <AdminManufacturers />}
-          {tab === "users" && <AdminUsers currentUserId={currentUserId} />}
-        </div>
-      </div>
-    </div>
-  );
-}
+type Tab = "ships" | "manufacturers" | "fragments" | "users";
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -55,5 +27,36 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
+  );
+}
+
+export default function AdminClient({ currentUserId }: Props) {
+  const [tab, setTab] = useState<Tab>("ships");
+
+  return (
+    <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center p-4 sm:p-8">
+      <div className="flex w-full max-w-6xl flex-col gap-4">
+        <div className="flex flex-col items-center gap-2">
+          <h1 className="text-3xl font-bold transition duration-500">Admin</h1>
+          <p className="text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">
+            Manage the ship catalogue, manufacturers, fragments, and reset user passwords.
+          </p>
+        </div>
+
+        <div role="tablist" className="flex justify-center gap-2">
+          <TabButton active={tab === "ships"} onClick={() => setTab("ships")}>Ships</TabButton>
+          <TabButton active={tab === "manufacturers"} onClick={() => setTab("manufacturers")}>Manufacturers</TabButton>
+          <TabButton active={tab === "fragments"} onClick={() => setTab("fragments")}>Fragments</TabButton>
+          <TabButton active={tab === "users"} onClick={() => setTab("users")}>Users</TabButton>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm transition duration-500 sm:p-6 dark:border-neutral-700 dark:bg-neutral-900">
+          {tab === "ships" && <AdminShips />}
+          {tab === "manufacturers" && <AdminManufacturers />}
+          {tab === "fragments" && <AdminFragments />}
+          {tab === "users" && <AdminUsers currentUserId={currentUserId} />}
+        </div>
+      </div>
+    </div>
   );
 }

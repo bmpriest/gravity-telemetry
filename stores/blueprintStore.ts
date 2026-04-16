@@ -33,6 +33,7 @@ export interface BlueprintAccountDTO {
   lastSaved: string;
   unassignedTp: number[];
   ships: BlueprintShipEntry[];
+  userFragments?: { fragmentId: number; quantityOwned: number }[];
 }
 
 const STORAGE_KEY = "blueprintAccounts";

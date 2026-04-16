@@ -298,9 +298,9 @@ describe("admin ship CRUD", () => {
     expect(row!.img).toBe("");
 
     // And mapShips() should resolve it to the per-type icon.
-    const { mapShips } = await import("@/lib/shipMapper");
+    const { mapShips, shipInclude } = await import("@/lib/shipMapper");
     const all = await prismaTest.ship.findMany({
-      include: { manufacturer: true, modules: { include: { sources: true, subsystems: { include: { attributes: true, targetCategories: { include: { priorities: true } }, uavPriorities: true } } } } },
+      include: shipInclude,
       where: { id: json.id },
     });
     const mapped = mapShips(all);

@@ -32,6 +32,8 @@ interface Body {
   largeFighterCapacity?: number | null;
   corvetteCapacity?: number | null;
   onlyCarriesDualPurpose?: boolean;
+  isFragmentUnlocked?: boolean;
+  fragments?: { fragmentId: number; quantityRequired: number }[];
 }
 
 export async function POST(req: NextRequest) {
@@ -74,6 +76,13 @@ export async function POST(req: NextRequest) {
         largeFighterCapacity: asIntOrNull(body.largeFighterCapacity),
         corvetteCapacity: asIntOrNull(body.corvetteCapacity),
         onlyCarriesDualPurpose: !!body.onlyCarriesDualPurpose,
+        isFragmentUnlocked: !!body.isFragmentUnlocked,
+        fragments: {
+          create: body.fragments?.map((f) => ({
+            fragmentId: asInt(f.fragmentId, "fragmentId"),
+            quantityRequired: asInt(f.quantityRequired, "quantityRequired"),
+          })) ?? [],
+        },
       },
     });
 

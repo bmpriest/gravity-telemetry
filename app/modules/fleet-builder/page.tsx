@@ -6,14 +6,14 @@ import FleetToolbar from "@/components/Fleet/FleetToolbar";
 import FleetFormationColumn from "@/components/Fleet/FleetFormationColumn";
 import FleetCarrierModal from "@/components/Fleet/FleetCarrierModal";
 import FleetModuleModal from "@/components/Fleet/FleetModuleModal";
-import FleetSavedFleets from "@/components/Fleet/FleetSavedFleets";
+import FleetManager from "@/components/Fleet/FleetManager";
 import FleetAircraftSection from "@/components/Fleet/FleetAircraftSection";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
 import { useBlueprintStore } from "@/stores/blueprintStore";
 import type { AllShip } from "@/utils/ships";
 import type { FleetShipInstance, FleetRow } from "@/utils/fleet";
-import { getCarriableType, getCarrierCapacity } from "@/utils/fleet";
+import { getCarriableType, getCarrierCapacity, getFleetValidationErrors } from "@/utils/fleet";
 
 const columns: { row: FleetRow; label: string; description: string }[] = [
   { row: "back", label: "Back Row", description: "Support & ranged" },
@@ -62,14 +62,16 @@ export default function FleetBuilderPage() {
   const loadFleet = useFleetStore((s) => s.loadFleet);
   const deleteFleet = useFleetStore((s) => s.deleteFleet);
   const newFleet = useFleetStore((s) => s.newFleet);
-  const loadFromStorage = useFleetStore((s) => s.loadFromStorage);
+  const setAngulum = useFleetStore((s) => s.setAngulum);
+  const updateFleet = useFleetStore((s) => s.updateFleet);
+  const reorderFleets = useFleetStore((s) => s.reorderFleets);
   const getShipCount = useFleetStore((s) => s.getShipCount);
   const getCurrentCP = useFleetStore((s) => s.getCurrentCP);
   const getAllRowInstances = useFleetStore((s) => s.getAllRowInstances);
   const getAllCarriedInstances = useFleetStore((s) => s.getAllCarriedInstances);
   const isFleetSaved = useFleetStore((s) => s.isFleetSaved);
 
-  const [showSavedFleets, setShowSavedFleets] = useState(false);
+  const [showManager, setShowManager] = useState(false);
   const [showOwnedOnly, setShowOwnedOnly] = useState(false);
   const [filterType, setFilterType] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
@@ -92,10 +94,22 @@ export default function FleetBuilderPage() {
   const hasBlueprintData = ownedShipIds !== null;
   const currentCP = getCurrentCP(allShips);
 
+  const hasOwnedAuxiliary = useMemo(() => {
+    if (!ownedShipIds) return false;
+    return Array.from(ownedShipIds).some(id => {
+      const ship = allShips.find(s => s.id === id);
+      return ship?.type === "Auxiliary Ship";
+    });
+  }, [ownedShipIds, allShips]);
+
   const filteredShips = useMemo(() => {
     let ships = allShips;
     if (showOwnedOnly && ownedShipIds) {
-      ships = ships.filter((ship) => ownedShipIds.has(ship.id));
+      ships = ships.filter((ship) => {
+        // Angulum requirement: if no auxiliary ship unlocked, provide FSV830
+        if (fleet.isAngulum && !hasOwnedAuxiliary && ship.id === 124) return true;
+        return ownedShipIds.has(ship.id);
+      });
     }
     if (filterType !== "All") {
       ships = ships.filter((ship) => ship.type === filterType);
@@ -110,20 +124,49 @@ export default function FleetBuilderPage() {
       );
     }
     return ships;
-  }, [allShips, showOwnedOnly, ownedShipIds, filterType, searchQuery]);
+  }, [allShips, showOwnedOnly, ownedShipIds, filterType, searchQuery, fleet.isAngulum, hasOwnedAuxiliary]);
 
   const carrierAvailableShips = useMemo(() => {
     let ships = allShips.filter((s) => getCarriableType(s) !== null);
     if (showOwnedOnly && ownedShipIds) {
-      ships = ships.filter((ship) => ownedShipIds.has(ship.id));
+      ships = ships.filter((ship) => {
+        if (fleet.isAngulum && !hasOwnedAuxiliary && ship.id === 124) return true;
+        return ownedShipIds.has(ship.id);
+      });
     }
     return ships;
-  }, [allShips, showOwnedOnly, ownedShipIds]);
+  }, [allShips, showOwnedOnly, ownedShipIds, fleet.isAngulum, hasOwnedAuxiliary]);
 
   const carrierModalLoads = useMemo(() => {
     if (!carrierModalInstances) return [];
     return carrierModalInstances.flatMap((inst) => fleet.carrierLoads[inst.id] ?? []);
   }, [carrierModalInstances, fleet.carrierLoads]);
+
+  const validationErrors = useMemo(() => {
+    return getFleetValidationErrors(fleet.id, [fleet, ...savedFleets.filter(f => f.id !== fleet.id)], allShips);
+  }, [fleet, savedFleets, allShips]);
+
+  const restrictedShipIds = useMemo(() => {
+    const set = new Set<number>();
+    
+    if (fleet.isAngulum) {
+      // If current is Angulum, ships in ANY Active fleet are restricted
+      const activeFleets = savedFleets.filter(f => f.isActive && f.id !== fleet.id);
+      activeFleets.forEach(f => {
+        const instances = [...f.rows.front, ...f.rows.middle, ...f.rows.back, ...f.rows.reinforcements, ...Object.values(f.carrierLoads).flat()];
+        instances.forEach(i => set.add(i.shipId));
+      });
+    } else if (fleet.isActive) {
+      // If current is Active, ships in ANY Angulum fleet are restricted
+      const angulumFleets = savedFleets.filter(f => f.isAngulum && f.id !== fleet.id);
+      angulumFleets.forEach(f => {
+        const instances = [...f.rows.front, ...f.rows.middle, ...f.rows.back, ...f.rows.reinforcements, ...Object.values(f.carrierLoads).flat()];
+        instances.forEach(i => set.add(i.shipId));
+      });
+    }
+    
+    return set;
+  }, [fleet, savedFleets]);
 
   function handleAddShip(ship: AllShip) {
     const carriableType = getCarriableType(ship);
@@ -207,12 +250,12 @@ export default function FleetBuilderPage() {
 
   function handleLoadFleet(fleetId: string) {
     loadFleet(fleetId);
-    setShowSavedFleets(false);
+    setShowManager(false);
     showNotice("Fleet loaded!");
   }
 
   return (
-    <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-4 sm:p-6">
+    <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-4 sm:p-6 transition duration-500">
       <div
         className="w-full max-w-7xl gap-5"
         style={{
@@ -227,6 +270,7 @@ export default function FleetBuilderPage() {
           filterType={filterType}
           searchQuery={searchQuery}
           getShipCount={getShipCount}
+          restrictedShipIds={restrictedShipIds}
           onToggleOwned={() => setShowOwnedOnly((v) => !v)}
           onFilterType={setFilterType}
           onSearch={setSearchQuery}
@@ -238,12 +282,33 @@ export default function FleetBuilderPage() {
             fleet={fleet}
             currentCP={currentCP}
             savedCount={savedFleets.length}
-            onUpdateName={(name) => useFleetStore.setState((s) => ({ fleet: { ...s.fleet, name } }))}
-            onUpdateMaxCP={(cp) => useFleetStore.setState((s) => ({ fleet: { ...s.fleet, maxCommandPoints: cp } }))}
+            validationErrors={validationErrors}
+            onUpdateName={(name) => updateFleet({ name })}
+            onUpdateMaxCP={(cp) => updateFleet({ maxCommandPoints: cp })}
             onSave={handleSaveFleet}
             onNewFleet={handleNewFleet}
-            onToggleSaved={() => setShowSavedFleets(true)}
+            onToggleSaved={() => setShowManager(!showManager)}
+            onToggleAngulum={setAngulum}
           />
+
+          {showManager && (
+            <FleetManager
+              savedFleets={savedFleets}
+              currentFleetId={fleet.id}
+              allShips={allShips}
+              onLoad={handleLoadFleet}
+              onDelete={deleteFleet}
+              onUpdateFleet={(id, updates) => {
+                if (id === fleet.id) updateFleet(updates);
+                else {
+                  useFleetStore.setState(s => ({
+                    savedFleets: s.savedFleets.map(f => f.id === id ? { ...f, ...updates } : f)
+                  }));
+                }
+              }}
+              onReorder={reorderFleets}
+            />
+          )}
 
           <div className="flex gap-3 overflow-x-auto lg:gap-4 pb-2">
             {columns.map((col) => (
@@ -256,6 +321,7 @@ export default function FleetBuilderPage() {
                 ships={allShips}
                 carrierLoads={fleet.carrierLoads}
                 moduleConfig={fleet.moduleConfig || {}}
+                isAngulum={fleet.isAngulum}
                 onDrop={(data) => handleDrop(data, col.row)}
                 onMoveShips={(data) => handleMoveShips(data, col.row)}
                 onAddShip={(ship) => addShip(ship, col.row)}
@@ -276,20 +342,6 @@ export default function FleetBuilderPage() {
           />
         </div>
       </div>
-
-      {showSavedFleets && (
-        <div
-          className="fixed left-0 top-0 z-20 flex h-dvh w-screen items-center justify-center bg-[rgba(0,0,0,0.5)]"
-          onClick={() => setShowSavedFleets(false)}
-        >
-          <FleetSavedFleets
-            savedFleets={savedFleets}
-            onClose={() => setShowSavedFleets(false)}
-            onLoad={handleLoadFleet}
-            onDelete={(id) => deleteFleet(id)}
-          />
-        </div>
-      )}
 
       {carrierModalInstances && (
         <div

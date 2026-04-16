@@ -11,6 +11,7 @@ interface Props {
   filterType: string;
   searchQuery: string;
   getShipCount: (shipId: number, variant: string) => number;
+  restrictedShipIds?: Set<number>;
   onToggleOwned: () => void;
   onFilterType: (type: string) => void;
   onSearch: (q: string) => void;
@@ -21,7 +22,7 @@ const switchStyle = {
   boxShadow: "var(--handleoffsetcalculator) 0 0 4px var(--bg-color) inset, 0 0 0 4px var(--bg-color) inset, var(--switchhandleborder)",
 };
 
-export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, filterType, searchQuery, getShipCount, onToggleOwned, onFilterType, onSearch, onAdd }: Props) {
+export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, filterType, searchQuery, getShipCount, restrictedShipIds, onToggleOwned, onFilterType, onSearch, onAdd }: Props) {
   return (
     <aside className="flex h-full flex-col gap-3 overflow-hidden rounded-2xl border border-neutral-200 bg-neutral-50 p-4 transition duration-500 dark:border-neutral-700 dark:bg-neutral-900">
       <div className="flex items-center justify-between">
@@ -88,6 +89,7 @@ export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, f
                 key={`${ship.id}-${ship.variant}`}
                 ship={ship}
                 countInFleet={getShipCount(ship.id, ship.variant)}
+                isRestricted={restrictedShipIds?.has(ship.id)}
                 onAdd={() => onAdd(ship)}
               />
             ))}

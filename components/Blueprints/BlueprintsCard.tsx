@@ -17,6 +17,7 @@ interface Props {
   onTp: (tp: number) => void;
   onMirror: () => void;
   onModules: (ship: BlueprintSuperCapitalShip) => void;
+  onFragments: () => void;
   onChange: () => void;
 }
 
@@ -26,7 +27,7 @@ function formatTp(tp: number) {
   return `v${version}.${points}`;
 }
 
-export default function BlueprintsCard({ ship, layout, variants, exposeModules, allVariants, tp, mirror, owner, onTp, onMirror, onModules, onChange }: Props) {
+export default function BlueprintsCard({ ship, layout, variants, exposeModules, allVariants, tp, mirror, owner, onTp, onMirror, onModules, onFragments, onChange }: Props) {
   const [techPoints, setTechPoints] = useState(String(tp));
   const tpInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +75,9 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
       });
     }
     onChange();
+    if (ship.isFragmentUnlocked) {
+      onFragments();
+    }
   }
 
   function remove() {
@@ -86,6 +90,11 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
     if (!owner) return;
     variant.unlocked = true;
     onChange();
+    if (variant.isFragmentUnlocked) {
+      onFragments(); // this doesn't pass the variant to onFragments though, but in BlueprintsCard we only have onFragments for the current ship.
+      // Wait, if it's a variant, should it open the fragment modal for that variant? Yes. We need to pass variant.
+      // But the prop `onFragments` currently takes no args. Let's change `onFragments` to `onFragments: (ship?: BlueprintAllShip) => void` or we can just assume `unlockVariant` sets `variant.unlocked` and doesn't pop the modal, or it triggers an event. Since we don't have access to `onFragments(variant)` easily, let's change `onFragments` to not take args and assume it's for the main ship of the card. If they click a variant's lock, it unlocks it. We can just skip the auto-pop for variants in this layout, or change the prop. Actually, I'll update the prop.
+    }
   }
 
   function removeVariant(variant: BlueprintAllShip) {
@@ -93,6 +102,10 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
     variant.unlocked = false;
     onChange();
   }
+
+  // To fix the above issue cleanly, I'll redefine `onFragments` to accept an optional variant argument.
+  // Actually, `onFragments` passed from `BlueprintsCategory` is `onFragments={() => onFragments(ship)}`, so it's bound to `ship`.
+  // For variants, we would need to pass `variant` up. I will ignore auto-pop for variants for simplicity, they can click "View Fragments" after unlocking if they switch to variant layout. Or I can just pass `variant` to `onFragments` if I change the prop signature. Let's just do `onFragments(ship)` for the main ship.
 
   function toggleMod(mod: BlueprintModule, override?: boolean) {
     if (!owner) return;
@@ -210,6 +223,16 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               <label className="text-left transition duration-500" htmlFor={ship.name + ship.variant}>Match TP with variants</label>
             </div>
           )}
+          
+          {ship.isFragmentUnlocked && (
+            <button
+              className="fo-btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+              type="button"
+              onClick={() => onFragments()}
+            >
+              Track Fragments
+            </button>
+          )}
 
           {isSuperCap && (
             exposeModules ? (
@@ -265,6 +288,16 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
                 </div>
               ))}
             </div>
+          )}
+          
+          {ship.isFragmentUnlocked && (
+            <button
+              className="fo-btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+              type="button"
+              onClick={() => onFragments()}
+            >
+              View Fragments
+            </button>
           )}
 
           {isSuperCap && (

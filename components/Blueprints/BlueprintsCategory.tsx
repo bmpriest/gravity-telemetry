@@ -15,6 +15,7 @@ interface Props {
   unassignedTp: number;
   onUnassignedTpChange: (tp: number) => void;
   onModules: (ship: BlueprintSuperCapitalShip) => void;
+  onFragments: (ship: BlueprintAllShip) => void;
   onDataChange: () => void;
   onMarkUnsaved: () => void;
 }
@@ -30,6 +31,7 @@ export default function BlueprintsCategory({
   unassignedTp,
   onUnassignedTpChange,
   onModules,
+  onFragments,
   onDataChange,
   onMarkUnsaved,
 }: Props) {
@@ -158,6 +160,7 @@ export default function BlueprintsCategory({
             onTp={(tp) => handleTp(ship, tp)}
             onMirror={() => toggleMirror(ship)}
             onModules={(s) => onModules(s)}
+            onFragments={() => onFragments(ship)}
             onChange={() => { onMarkUnsaved(); onDataChange(); }}
           />
         ))}

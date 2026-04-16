@@ -144,6 +144,10 @@ model Ship {
   corvetteCapacity      Int?
   onlyCarriesDualPurpose Boolean @default(false)
 
+  // Fragment unlock system
+  isFragmentUnlocked Boolean @default(false)
+  fragments          ShipFragment[]
+
   modules        ShipModule[]
   shipBlueprints ShipBlueprint[]
 
@@ -307,6 +311,7 @@ model BlueprintAccount {
   unassignedTp8 Int @default(0)
 
   shipBlueprints ShipBlueprint[]
+  userFragments  UserFragment[]
 
   @@unique([userId, accountIndex])
 }
@@ -337,6 +342,34 @@ model ModuleBlueprint {
   @@unique([shipBlueprintId, moduleId])
 }
 
+model BlueprintFragment {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  ships ShipFragment[]
+  userFragments UserFragment[]
+}
+
+model ShipFragment {
+  shipId           Int
+  ship             Ship              @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  fragmentId       Int
+  fragment         BlueprintFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  quantityRequired Int
+
+  @@id([shipId, fragmentId])
+}
+
+model UserFragment {
+  accountId     String
+  account       BlueprintAccount  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  fragmentId    Int
+  fragment      BlueprintFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  quantityOwned Int               @default(0)
+
+  @@id([accountId, fragmentId])
+}
+
 // ============================================================================
 // Saved fleets
 // ============================================================================
@@ -352,6 +385,10 @@ model SavedFleet {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   instances        FleetShipInstance[]
+
+  isAngulum        Boolean             @default(false)
+  isActive         Boolean             @default(false)
+  order            Int                 @default(0)
 }
 
 model FleetShipInstance {

@@ -74,10 +74,12 @@ export async function POST(req: NextRequest) {
         serviceLimit: s.serviceLimit,
         fighterType: s.fighterType,
         fightersPerSquadron: s.fightersPerSquadron,
+        dualPurpose: s.dualPurpose ?? false,
         smallFighterCapacity: s.smallFighterCapacity,
         mediumFighterCapacity: s.mediumFighterCapacity,
         largeFighterCapacity: s.largeFighterCapacity,
         corvetteCapacity: s.corvetteCapacity,
+        onlyCarriesDualPurpose: s.onlyCarriesDualPurpose ?? false,
       };
 
       const existingShip = await prisma.ship.findUnique({
@@ -104,7 +106,7 @@ export async function POST(req: NextRequest) {
       // Create modules
       if (Array.isArray(s.modules)) {
         for (const mod of s.modules) {
-          const createdModule = await prisma.shipModule.create({
+          await prisma.shipModule.create({
             data: {
               shipId,
               kind: mod.kind,
@@ -139,6 +141,7 @@ export async function POST(req: NextRequest) {
                   alpha: sub.alpha,
                   hanger: sub.hanger,
                   capacity: sub.capacity,
+                  onlyCarriesDualPurpose: sub.onlyCarriesDualPurpose ?? false,
                   repair: sub.repair,
                   cooldown: sub.cooldown,
                   lockOnTime: sub.lockOnTime,

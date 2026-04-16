@@ -23,6 +23,11 @@ import AdminShipModules from "./AdminShipModules";
 
 interface Manufacturer { id: number; name: string }
 
+export interface ShipFragmentFormValues {
+  fragmentId: number;
+  quantityRequired: number;
+}
+
 export interface ShipFormValues {
   name: string;
   title: string;
@@ -43,6 +48,8 @@ export interface ShipFormValues {
   largeFighterCapacity: number | null;
   corvetteCapacity: number | null;
   onlyCarriesDualPurpose: boolean;
+  isFragmentUnlocked: boolean;
+  fragments: ShipFragmentFormValues[];
 }
 
 interface Props {
@@ -78,6 +85,8 @@ function emptyForm(): ShipFormValues {
     largeFighterCapacity: null,
     corvetteCapacity: null,
     onlyCarriesDualPurpose: false,
+    isFragmentUnlocked: false,
+    fragments: [],
   };
 }
 
@@ -109,12 +118,15 @@ function fromShip(s: AllShip, manufacturers: Manufacturer[]): ShipFormValues {
     largeFighterCapacity: any.largeFighterCapacity ?? null,
     corvetteCapacity: any.corvetteCapacity ?? null,
     onlyCarriesDualPurpose: any.onlyCarriesDualPurpose ?? false,
+    isFragmentUnlocked: any.isFragmentUnlocked ?? false,
+    fragments: any.fragments ?? [],
   };
 }
 
 export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
   const [values, setValues] = useState<ShipFormValues>(emptyForm());
   const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
+  const [availableFragments, setAvailableFragments] = useState<{ id: number; name: string }[]>([]);
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -130,12 +142,14 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const [mRes, iRes] = await Promise.all([
+        const [mRes, iRes, fRes] = await Promise.all([
           fetch("/api/admin/manufacturers"),
           fetch("/api/admin/ships/images"),
+          fetch("/api/admin/fragments"),
         ]);
         const mJson = await mRes.json();
         const iJson = await iRes.json();
+        const fJson = await fRes.json();
         
         if (mJson.success && Array.isArray(mJson.data)) {
           // Sort manufacturers: alphabetical, with "Empty" at the bottom
@@ -150,6 +164,9 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
         }
         if (iJson.success && Array.isArray(iJson.data)) {
           setImages(iJson.data);
+        }
+        if (fJson.success && Array.isArray(fJson.data)) {
+          setAvailableFragments(fJson.data);
         }
       } catch (e) {
         console.error("Failed to load form data", e);
@@ -484,11 +501,89 @@ export default function AdminShipForm({ ship, onCancel, onSubmit }: Props) {
           )}
         </div>
 
+        <div className="mt-2 border-t border-neutral-100 pt-4 dark:border-neutral-700">
+          <Field label="Unlock Method">
+            <label className="flex h-full items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={values.isFragmentUnlocked}
+                onChange={(e) => update("isFragmentUnlocked", e.target.checked)}
+                className="h-4 w-4 rounded border-neutral-300 transition duration-500 dark:border-neutral-600 dark:bg-neutral-900"
+              />
+              Requires fragments to unlock
+            </label>
+          </Field>
+          
+          {values.isFragmentUnlocked && (
+            <div className="mt-4 flex flex-col gap-2 rounded-xl border border-neutral-200 p-4 dark:border-neutral-700">
+              <h3 className="text-sm font-bold">Required Fragments</h3>
+              <div className="flex flex-col gap-2">
+                {values.fragments.map((frag, idx) => {
+                  const available = availableFragments.filter(
+                    (f) => f.id === frag.fragmentId || !values.fragments.some((vf) => vf.fragmentId === f.id)
+                  );
+                  return (
+                    <div key={idx} className="flex gap-2 items-center">
+                      <select
+                        value={frag.fragmentId}
+                        onChange={(e) => {
+                          const newFrags = [...values.fragments];
+                          newFrags[idx].fragmentId = Number(e.target.value);
+                          update("fragments", newFrags);
+                        }}
+                        className={inputCls}
+                      >
+                        <option value={0} disabled>Select Fragment</option>
+                        {available.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="Quantity"
+                        value={frag.quantityRequired || ""}
+                        onChange={(e) => {
+                          const newFrags = [...values.fragments];
+                          newFrags[idx].quantityRequired = Number(e.target.value);
+                          update("fragments", newFrags);
+                        }}
+                        className={`${inputCls} w-24`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newFrags = [...values.fragments];
+                          newFrags.splice(idx, 1);
+                          update("fragments", newFrags);
+                        }}
+                        className="du-btn du-btn-sm border-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                      >
+                        X
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {availableFragments.length > values.fragments.length && (
+                <button
+                  type="button"
+                  onClick={() => update("fragments", [...values.fragments, { fragmentId: 0, quantityRequired: 1 }])}
+                  className="du-btn du-btn-sm border-blue-300 bg-blue-100 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 self-start mt-2"
+                >
+                  + Add Fragment Requirement
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Module + subsystem editor — only meaningful for an already-saved ship,
             so we hide it on the "+ New ship" path. After the first save the
             ship will have an id and the next open-Edit cycle exposes this. */}
         {ship && (
           <div className="mt-2 border-t border-neutral-100 pt-4 dark:border-neutral-700">
+
             {isSupercap ? (
               <div className="flex flex-col gap-2">
                 <button

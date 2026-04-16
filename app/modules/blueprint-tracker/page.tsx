@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import BlueprintsToolbar from "@/components/Blueprints/BlueprintsToolbar";
 import BlueprintsCategory from "@/components/Blueprints/BlueprintsCategory";
 import BlueprintsModules from "@/components/Blueprints/BlueprintsModules";
+import BlueprintsFragments from "@/components/Blueprints/BlueprintsFragments";
 import { useUserStore } from "@/stores/userStore";
 import { useBlueprintStore, type BlueprintAccountDTO, type BlueprintShipEntry } from "@/stores/blueprintStore";
 import { formatDate } from "@/utils/functions";
@@ -102,6 +103,7 @@ export default function BlueprintTrackerPage() {
   const [data, setData] = useState<BlueprintAllShip[]>();
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [unassignedTp, setUnassignedTp] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const [userFragments, setUserFragments] = useState<{ fragmentId: number; quantityOwned: number }[]>([]);
 
   // Layout / view options
   const [isListLayout, setIsListLayout] = useState(false);
@@ -110,6 +112,7 @@ export default function BlueprintTrackerPage() {
 
   // Search / sort / filter
   const [currentShip, setCurrentShip] = useState<BlueprintSuperCapitalShip>();
+  const [currentShipFragments, setCurrentShipFragments] = useState<BlueprintAllShip>();
   const [currentFilters, setCurrentFilters] = useState<ShipFilter>();
   const [currentSorter, setCurrentSorter] = useState<ShipSorter>();
   const [currentSearch, setCurrentSearch] = useState("");
@@ -159,6 +162,7 @@ export default function BlueprintTrackerPage() {
       setDraftAccount(draft);
       setData(buildView(shipData, draft));
       setUnassignedTp(draft.unassignedTp);
+      setUserFragments([]);
       setHasUnsavedChanges(false);
       return;
     }
@@ -174,6 +178,7 @@ export default function BlueprintTrackerPage() {
     setDraftAccount(target);
     setData(buildView(shipData, target));
     setUnassignedTp([...target.unassignedTp]);
+    setUserFragments([...(target.userFragments ?? [])]);
     setHasUnsavedChanges(false);
   }, [accounts, accountIndex, shipData, authChecked]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -196,11 +201,12 @@ export default function BlueprintTrackerPage() {
     if (!draftAccount || !data) return false;
     const tp = unassignedTp.length === 9
       ? (unassignedTp as unknown as BlueprintAccountDTO["unassignedTp"])
-      : ([0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      : ([0, 0, 0, 0, 0, 0, 0, 0, 0] as const);
     const account: BlueprintAccountDTO = {
       ...draftAccount,
-      unassignedTp: tp,
+      unassignedTp: tp as unknown as BlueprintAccountDTO["unassignedTp"],
       ships: viewToShipEntries(data),
+      userFragments,
     };
     const saved = await saveAccount(account);
     if (saved) {
@@ -209,7 +215,7 @@ export default function BlueprintTrackerPage() {
       return true;
     }
     return false;
-  }, [draftAccount, data, unassignedTp, saveAccount]);
+  }, [draftAccount, data, unassignedTp, userFragments, saveAccount]);
 
   const onCreateNew = useCallback(() => {
     if (accounts.length >= 10) return;
@@ -299,6 +305,7 @@ export default function BlueprintTrackerPage() {
                 setHasUnsavedChanges(true);
               }}
               onModules={(ship) => setCurrentShip(ship)}
+              onFragments={(ship) => setCurrentShipFragments(ship)}
               onDataChange={() => setData((prev) => prev ? [...prev] : prev)}
               onMarkUnsaved={() => setHasUnsavedChanges(true)}
             />
@@ -322,6 +329,24 @@ export default function BlueprintTrackerPage() {
             ship={currentShip}
             owner={isOwner}
             onDone={() => setCurrentShip(undefined)}
+            onChange={() => {
+              setHasUnsavedChanges(true);
+              setData((prev) => prev ? [...prev] : prev);
+            }}
+          />
+        </div>
+      )}
+
+      {currentShipFragments && (
+        <div
+          className="fixed left-0 top-0 z-20 flex h-dvh w-screen items-center justify-center bg-[rgba(0,0,0,0.5)]"
+          onClick={() => setCurrentShipFragments(undefined)}
+        >
+          <BlueprintsFragments
+            ship={currentShipFragments}
+            userFragments={userFragments}
+            onUpdate={setUserFragments}
+            onDone={() => setCurrentShipFragments(undefined)}
             onChange={() => {
               setHasUnsavedChanges(true);
               setData((prev) => prev ? [...prev] : prev);

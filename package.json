@@ -1,7 +1,7 @@
 {
   "name": "gravity-telemetry",
   "private": false,
-  "version": "3.2.5",
+  "version": "3.3.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

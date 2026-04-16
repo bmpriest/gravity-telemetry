@@ -18,6 +18,7 @@ interface Props {
   row: FleetRow;
   carrierLoads: Record<string, FleetShipInstance[]>;
   moduleConfig: Record<string, Record<string, number>>;
+  isAngulum?: boolean;
   onIncrement: () => void;
   onDecrement: () => void;
   onModules: () => void;
@@ -35,7 +36,7 @@ const slotColors: Record<string, string> = {
   H: "bg-gray-600",
 };
 
-export default function FleetFormationStack({ stack, row, carrierLoads, moduleConfig, onIncrement, onDecrement, onModules }: Props) {
+export default function FleetFormationStack({ stack, row, moduleConfig, isAngulum, onIncrement, onDecrement, onModules }: Props) {
   const [isDragging, setIsDragging] = useState(false);
 
   function onDragStart(event: React.DragEvent) {
@@ -56,7 +57,7 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
 
   const canAdd = stack.count < stack.ship.serviceLimit;
   const hasModules = "modules" in stack.ship && stack.ship.modules && stack.ship.modules.length > 0;
-  const typeColor = shipTypeColors[stack.ship.type] ?? "transparent";
+  const typeColor = isAngulum ? "rgb(239, 68, 68)" : (shipTypeColors[stack.ship.type] ?? "transparent");
 
   // Gather active module systems to display
   let activeModuleBadges = null;
@@ -83,7 +84,7 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
           <div className="flex flex-wrap gap-1 mt-1 justify-center">
             {activeModules.map((mod) => {
               const slot = mod.system.charAt(0);
-              const colorClass = slotColors[slot] || "bg-neutral-600";
+              const colorClass = isAngulum ? "bg-red-600" : (slotColors[slot] || "bg-neutral-600");
               return (
                 <span key={mod.id} className={`px-1 text-[0.55rem] font-bold text-white rounded ${colorClass}`} title={("name" in mod ? mod.name : mod.system)}>
                   {mod.system}
@@ -99,7 +100,7 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
       if (configuredCount > 0) {
         activeModuleBadges = (
           <div className="flex flex-wrap gap-1 mt-1 justify-center">
-            <span className="px-1 text-[0.55rem] font-bold text-white bg-blue-600 rounded">
+            <span className={`px-1 text-[0.55rem] font-bold text-white rounded ${isAngulum ? "bg-red-600" : "bg-blue-600"}`}>
               {configuredCount} Configured
             </span>
           </div>
@@ -108,9 +109,13 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
     }
   }
 
+  const stackBgClass = isAngulum 
+    ? "bg-white/80 dark:bg-red-950/20 border-red-200 dark:border-red-900/40" 
+    : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700";
+
   return (
     <div
-      className={`relative flex cursor-grab flex-col gap-1 rounded-xl border bg-white p-2.5 transition duration-200 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 ${isDragging ? "opacity-40" : ""}`}
+      className={`relative flex cursor-grab flex-col gap-1 rounded-xl border p-2.5 transition duration-200 shadow-sm ${stackBgClass} ${isDragging ? "opacity-40" : ""}`}
       style={{ borderLeft: `3px solid ${typeColor}` }}
       draggable
       onDragStart={onDragStart}
@@ -118,15 +123,17 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
     >
       <div className="flex items-start justify-between gap-1">
         <div className="flex items-center gap-1.5">
-          <img className="size-3.5 select-none opacity-50 dark:invert" src={getShipClassIcon(stack.ship.type)} alt={stack.ship.type} />
-          <p className="text-left text-xs font-bold text-black dark:text-white">{stack.ship.name}</p>
+          <img className={`size-3.5 select-none opacity-50 ${isAngulum ? "sepia hue-rotate-[320deg] saturate-[200%]" : "dark:invert"}`} src={getShipClassIcon(stack.ship.type)} alt={stack.ship.type} />
+          <p className={`text-left text-xs font-bold ${isAngulum ? "text-red-900 dark:text-red-100" : "text-black dark:text-white"}`}>
+            {stack.ship.name}
+          </p>
         </div>
       </div>
 
       <img className="mx-auto h-10 object-contain" src={stack.ship.img} alt={stack.ship.name} loading="lazy" />
 
       <div className="text-center">
-        <p className="text-[0.6rem] text-neutral-500 dark:text-neutral-400">
+        <p className={`text-[0.6rem] ${isAngulum ? "text-red-600/70 dark:text-red-400/60" : "text-neutral-500 dark:text-neutral-400"}`}>
           {stack.ship.variantName}{stack.ship.hasVariants && ` (${stack.ship.variant})`}
         </p>
         {activeModuleBadges}
@@ -135,17 +142,25 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
       <div className="flex items-center justify-between mt-1">
         <div className="flex items-center gap-1">
           <button
-            className="flex size-5 items-center justify-center rounded bg-neutral-200 text-xs font-bold text-black transition hover:bg-neutral-300 dark:bg-neutral-700 dark:text-white dark:hover:bg-neutral-600"
+            className={`flex size-5 items-center justify-center rounded text-xs font-bold transition ${
+              isAngulum
+                ? "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-800"
+                : "bg-neutral-200 text-black hover:bg-neutral-300 dark:bg-neutral-700 dark:text-white dark:hover:bg-neutral-600"
+            }`}
             type="button"
             onClick={onDecrement}
           >
             &minus;
           </button>
-          <span className="min-w-[1.5rem] text-center text-xs font-bold text-black dark:text-white">{stack.count}</span>
+          <span className={`min-w-[1.5rem] text-center text-xs font-bold ${isAngulum ? "text-red-900 dark:text-red-100" : "text-black dark:text-white"}`}>
+            {stack.count}
+          </span>
           <button
             className={`flex size-5 items-center justify-center rounded text-xs font-bold transition ${
               canAdd
-                ? "bg-blue-200 text-blue-800 hover:bg-blue-300 dark:bg-blue-800 dark:text-blue-200 dark:hover:bg-blue-700"
+                ? (isAngulum 
+                    ? "bg-red-500 text-white hover:bg-red-600 shadow-sm" 
+                    : "bg-blue-200 text-blue-800 hover:bg-blue-300 dark:bg-blue-800 dark:text-blue-200 dark:hover:bg-blue-700")
                 : "cursor-not-allowed bg-neutral-100 text-neutral-400 dark:bg-neutral-800 dark:text-neutral-600"
             }`}
             type="button"
@@ -155,14 +170,18 @@ export default function FleetFormationStack({ stack, row, carrierLoads, moduleCo
             +
           </button>
         </div>
-        <span className="text-[0.65rem] font-semibold text-neutral-500 dark:text-neutral-400">
+        <span className={`text-[0.65rem] font-semibold ${isAngulum ? "text-red-600/80 dark:text-red-400/80" : "text-neutral-500 dark:text-neutral-400"}`}>
           {stack.count * stack.ship.commandPoints} CP
         </span>
       </div>
 
       {hasModules && (
         <button
-          className="w-full mt-1 rounded-lg border border-purple-300 bg-purple-100 px-2 py-0.5 text-[0.6rem] font-medium text-purple-800 transition hover:bg-purple-200 dark:border-purple-700 dark:bg-purple-900 dark:text-purple-200 dark:hover:bg-purple-800"
+          className={`w-full mt-1 rounded-lg border px-2 py-0.5 text-[0.6rem] font-medium transition ${
+            isAngulum
+              ? "border-red-300 bg-red-100 text-red-800 hover:bg-red-200 dark:border-red-800 dark:bg-red-900 dark:text-red-100 dark:hover:bg-red-800"
+              : "border-purple-300 bg-purple-100 text-purple-800 hover:bg-purple-200 dark:border-purple-700 dark:bg-purple-900 dark:text-purple-200 dark:hover:bg-purple-800"
+          }`}
           type="button"
           onClick={onModules}
         >

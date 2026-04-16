@@ -20,6 +20,9 @@ interface FleetDto {
   id: string;
   name: string;
   maxCommandPoints: number;
+  isAngulum: boolean;
+  isActive: boolean;
+  order: number;
   rows: {
     front: ShipInstanceDto[];
     middle: ShipInstanceDto[];
@@ -93,7 +96,15 @@ function fleetToInstances(fleetId: string, fleet: FleetDto) {
 }
 
 function instancesToFleet(
-  fleetRow: { id: string; name: string; maxCommandPoints: number; moduleConfig: string | null },
+  fleetRow: { 
+    id: string; 
+    name: string; 
+    maxCommandPoints: number; 
+    moduleConfig: string | null;
+    isAngulum: boolean;
+    isActive: boolean;
+    order: number;
+  },
   instances: DbInstance[],
 ): FleetDto {
   const rows: FleetDto["rows"] = { front: [], middle: [], back: [], reinforcements: [] };
@@ -123,6 +134,9 @@ function instancesToFleet(
     id: fleetRow.id,
     name: fleetRow.name,
     maxCommandPoints: fleetRow.maxCommandPoints,
+    isAngulum: fleetRow.isAngulum,
+    isActive: fleetRow.isActive,
+    order: fleetRow.order,
     rows,
     carrierLoads,
     moduleConfig,
@@ -132,7 +146,7 @@ function instancesToFleet(
 async function listFleets(userId: string): Promise<FleetDto[]> {
   const fleets = await prisma.savedFleet.findMany({
     where: { userId },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { order: "asc" },
     include: { instances: true },
   });
   return fleets.map((f) => instancesToFleet(f as any, f.instances as DbInstance[]));
@@ -162,6 +176,9 @@ export async function POST(req: NextRequest) {
       const fleetData = {
         name: fleet.name,
         maxCommandPoints: fleet.maxCommandPoints,
+        isAngulum: fleet.isAngulum ?? false,
+        isActive: fleet.isActive ?? false,
+        order: fleet.order ?? 0,
         moduleConfig: fleet.moduleConfig ? JSON.stringify(fleet.moduleConfig) : null,
       };
 

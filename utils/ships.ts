@@ -41,6 +41,8 @@ export interface Ship {
   row: "Front" | "Middle" | "Back";
   commandPoints: number;
   serviceLimit: number;
+  isFragmentUnlocked?: boolean;
+  fragments?: { fragmentId: number; quantityRequired: number }[];
 }
 
 export interface Fighter extends Ship {
