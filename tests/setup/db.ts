@@ -25,10 +25,8 @@ export const prismaTest = new PrismaClient();
  * because we want CASCADE to do the work — restarting identity keeps test
  * fixtures predictable across runs.
  *
- * The Ship/ShipModule/Subsystem/etc. tables are deliberately NOT touched, so
- * the seeded catalogue is reused by every test. The only catalogue mutation
- * tests perform is via /api/admin/ships, and those tests are responsible for
- * undoing their own changes.
+ * The Ship/System/Module/etc. catalogue tables are deliberately NOT touched,
+ * so the seeded catalogue is reused by every test.
  */
 export async function cleanUserData(): Promise<void> {
   await prismaTest.$executeRawUnsafe(
@@ -36,7 +34,8 @@ export async function cleanUserData(): Promise<void> {
       "Session",
       "BlueprintAccount",
       "ShipBlueprint",
-      "ModuleBlueprint",
+      "SystemBlueprint",
+      "UserFragment",
       "SavedFleet",
       "FleetShipInstance",
       "SavedMail",

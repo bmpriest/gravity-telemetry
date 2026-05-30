@@ -191,7 +191,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
             <div className="flex w-full items-center justify-center gap-2">
               {allVariants.slice(1).map((variant) => (
                 <button
-                  key={variant.variant}
+                  key={variant.id}
                   className={`fo-btn relative w-1/4 grow overflow-hidden border-red-300 bg-red-300 text-black transition duration-500 dark:border-red-600 dark:bg-red-600 dark:text-white ${variant.unlocked ? "hover:border-red-500 hover:bg-red-500 dark:hover:border-red-700 dark:hover:bg-red-700" : ""}`}
                   type="button"
                   onClick={() => removeVariant(variant)}
@@ -276,7 +276,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
             <div className="flex w-full items-center justify-center gap-2">
               {allVariants.slice(1).map((variant) => (
                 <div
-                  key={variant.variant}
+                  key={variant.id}
                   className="fo-btn relative w-1/4 grow overflow-hidden border-green-300 bg-green-300 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-600 dark:hover:bg-green-600"
                 >
                   {!variant.unlocked && (

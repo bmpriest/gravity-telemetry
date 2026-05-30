@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Alert, SessionUser } from "@/utils/types";
 import type { AllShip } from "@/utils/ships";
+import type { RichShip } from "@/utils/shipModel";
 
 interface AuthResult {
   ok: boolean;
@@ -18,6 +19,10 @@ interface UserState {
   // Ship catalogue (loaded from /api/ships, server-side joined)
   shipData: AllShip[] | undefined;
 
+  // Rich ship catalogue (loaded from /api/ships/rich) for the System Library,
+  // Blueprint Library and the shared System View.
+  richShipData: RichShip[] | undefined;
+
   // Setters
   setIsDarkMode: (v: boolean) => void;
   setAlert: (v: Alert | undefined) => void;
@@ -32,6 +37,7 @@ interface UserState {
 
   // Data loaders
   fetchShipData: () => Promise<void>;
+  fetchRichShipData: () => Promise<void>;
   fetchLatestAlert: () => Promise<void>;
   init: () => void;
 }
@@ -42,6 +48,7 @@ export const useUserStore = create<UserState>((set, get) => ({
   user: undefined,
   authChecked: false,
   shipData: undefined,
+  richShipData: undefined,
 
   setIsDarkMode: (v) => set({ isDarkMode: v }),
   setAlert: (v) => set({ alert: v }),
@@ -124,6 +131,16 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ shipData: data });
     } catch {
       console.error("Failed to fetch ship data");
+    }
+  },
+
+  async fetchRichShipData() {
+    try {
+      const res = await fetch("/api/ships/rich");
+      const { data } = await res.json();
+      set({ richShipData: data });
+    } catch {
+      console.error("Failed to fetch rich ship data");
     }
   },
 

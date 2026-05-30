@@ -25,15 +25,16 @@ beforeEach(async () => {
   await cleanUserData();
 });
 
-// We need a real ship id for the blueprint payloads. The seed populates the
-// catalogue, so any deterministic name works — we look it up once per test.
-async function pickShipWithModule() {
+// We need a real ship id + a trackable "module" id for the blueprint payloads.
+// In v4 the trackable unit is a coded supercapital System (M1, A1, …), so we
+// pick a ship that has one and surface its System id as `moduleId`.
+async function pickShipWithModule(): Promise<{ id: number; variant: string; moduleId: number }> {
   const ship = await prismaTest.ship.findFirst({
-    where: { modules: { some: {} } },
-    include: { modules: { take: 1 } },
+    where: { systems: { some: { code: { not: null } } } },
+    include: { systems: { where: { code: { not: null } }, take: 1 } },
   });
-  if (!ship) throw new Error("test fixture: no ship with modules in seeded catalogue");
-  return ship;
+  if (!ship) throw new Error("test fixture: no ship with a coded system in seeded catalogue");
+  return { id: ship.id, variant: ship.variant, moduleId: ship.systems[0].id };
 }
 
 // ----------------------------------------------------------------------------
@@ -63,7 +64,7 @@ describe("/api/blueprints", () => {
             unlocked: true,
             techPoints: 5,
             mirrorTechPoints: false,
-            modules: [{ moduleId: ship.modules[0].id, unlocked: true }],
+            modules: [{ moduleId: ship.moduleId, unlocked: true }],
           },
         ],
       },
@@ -84,7 +85,7 @@ describe("/api/blueprints", () => {
     expect(json.data[0].ships).toHaveLength(1);
     expect(json.data[0].ships[0].shipId).toBe(ship.id);
     expect(json.data[0].ships[0].modules).toHaveLength(1);
-    expect(json.data[0].ships[0].modules[0].moduleId).toBe(ship.modules[0].id);
+    expect(json.data[0].ships[0].modules[0].moduleId).toBe(ship.moduleId);
   });
 
   test("one user cannot see another user's blueprints", async () => {

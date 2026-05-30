@@ -8,10 +8,11 @@ interface Props {
 }
 
 const MODULE_HEADERS: Record<string, { title: string; icon: string }> = {
+  "/modules/blueprint-library": { title: "Blueprint Library", icon: "/ui/bpTracker.svg" },
+  "/modules/system-library": { title: "System Library", icon: "/ui/moduleLibrary.svg" },
   "/modules/blueprint-tracker": { title: "Blueprint Tracker", icon: "/ui/bpTracker.svg" },
   "/modules/fleet-builder": { title: "Fleet Builder", icon: "/ui/fleetBuilder.svg" },
   "/modules/mail-editor": { title: "Mail Editor", icon: "/ui/mailEditor.svg" },
-  "/modules/module-library": { title: "Module Library", icon: "/ui/moduleLibrary.svg" },
 };
 
 export default function AppHeader({ onToggleSidebar }: Props) {

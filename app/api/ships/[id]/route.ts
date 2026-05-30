@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { handle } from "@/lib/api";
-import { mapShip, shipInclude } from "@/lib/shipMapper";
+import { mapLegacyShip, legacyShipInclude } from "@/lib/shipMapper";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   return handle(async () => {
@@ -10,10 +10,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const ship = await prisma.ship.findUnique({
       where: { id: numericId },
-      include: shipInclude,
+      include: legacyShipInclude,
     });
     if (!ship) throw new Error("Ship not found.");
 
-    return { data: mapShip(ship) };
+    const siblingCount = await prisma.ship.count({ where: { type: ship.type, shortName: ship.shortName } });
+    return { data: mapLegacyShip(ship, undefined, siblingCount > 1) };
   });
 }

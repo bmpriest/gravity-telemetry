@@ -1,10 +1,18 @@
-// Gravity Telemetry — Prisma Schema (PostgreSQL)
+// Gravity Telemetry — Prisma Schema (PostgreSQL) — v4.0
+//
+// v4.0 rebuilds the ship catalogue around the structure of output/json/ships.json:
+//   Ship → System → Slot → Module → Weapon → TargetPriority → TargetType
+// plus ModuleEffect, CarriedCraft, ShipHangarStat, ShipAffix and a richer
+// fragment model. The whole subtree is normalized into relational tables; the
+// 1:1 sub-objects of ships.json (production_cost, damage_per_minute, ratings,
+// aircraft_stats) are flattened into Ship columns since a child table there
+// would be ceremony without a normalization benefit.
 //
 // Production: docker compose up brings up Postgres in the `db` service.
 // Local dev: `docker compose up db` and point DATABASE_URL at localhost.
 // Migrations: `npm run db:migrate -- --name <name>` (dev), `npm run db:deploy` (prod).
-// Seed:       `npm run db:seed` — populates ships from data/ships.ts and bootstraps the
-//             admin user from ADMIN_USERNAME/ADMIN_PASSWORD env vars.
+// Seed/Import: `npm run db:seed` (importer + admin bootstrap) or
+//              `npm run import -- output` (CLI importer that also copies images).
 
 generator client {
   provider = "prisma-client-js"
@@ -58,231 +66,372 @@ model Session {
 // Ship catalogue
 // ============================================================================
 
-enum ShipType {
-  Fighter
-  Corvette
-  Frigate
-  Destroyer
-  Cruiser
-  Battlecruiser
-  AuxiliaryShip
-  Carrier
-  Battleship
-}
-
-// Manufacturer was an enum in the initial schema. It's now a table so admins
-// can add new manufacturers from the UI without a code change + migration.
-// The seed inserts the original 5 (Jupiter Industry, NOMA Shipping, Antonios,
-// Dawn Accord, Empty) and ships are linked by FK.
-model Manufacturer {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
-  ships Ship[]
-}
-
+// Fleet rows are still a fixed enum — the fleet builder relies on exactly these.
 enum ShipRow {
   Front
   Middle
   Back
 }
 
-enum FighterSize {
-  Small
-  Medium
-  Large
-}
-
-enum ModuleKind {
-  weapon
-  propulsion
-  armor
-  unknown
-}
-
-enum SubsystemKind {
-  weapon
-  hanger
-  misc
-}
-
-enum DamageType {
-  Projectile
-  Energy
-}
-
-enum WeaponTarget {
-  Building
-  Aircraft
-  SmallShip
-  LargeShip
+// Manufacturer is a table so admins can add new ones from the UI. The importer
+// upserts by name and records the game-side id + the company logo path.
+model Manufacturer {
+  id         Int     @id @default(autoincrement())
+  name       String  @unique
+  // The game's manufacturer_id (e.g. 1 = Jupiter Industry). Null for admin-made.
+  externalId Int?    @unique
+  // Path under /public, e.g. "/ships/companies/jupiter_industries.png".
+  logo       String?
+  ships      Ship[]
 }
 
 model Ship {
-  id            Int          @id @default(autoincrement())
-  name          String
-  title         String
-  img           String
-  type          ShipType
-  variant       String
-  variantName   String
-  hasVariants   Boolean
+  id          Int     @id @default(autoincrement())
+  // The game's ship_id (e.g. 100000). Unique so the importer can upsert by it
+  // and keep Ship.id (and therefore saved-fleet / blueprint references) stable
+  // across re-imports. Null only for ships an admin creates by hand.
+  gameId      Int?    @unique
+  name        String
+  shortName   String
+  title       String  @default("")
+  description String  @default("")
+  img         String  @default("")
+
+  // Variants. `variant` defaults to "A" when the source omits it.
+  variant     String  @default("A")
+  variantName String  @default("")
+
+  // Free-form so the catalogue can hold every game type
+  // (Fighter…Battleship plus Base / Utility Ship). UI filters by the known
+  // combat-type lists in utils/shipModel.ts.
+  type           String
   manufacturerId Int
-  manufacturer  Manufacturer @relation(fields: [manufacturerId], references: [id])
-  row           ShipRow
-  commandPoints Int
-  serviceLimit  Int
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id])
+  rowPosition    String       @default("Front")
 
-  // Fighter-only
-  fighterType         FighterSize?
-  fightersPerSquadron Int?
-  dualPurpose         Boolean     @default(false)
+  commandPoints Int @default(0)
+  serviceLimit  Int @default(0)
 
-  // Carrier capacities (Frigate / Destroyer / Cruiser variants)
-  smallFighterCapacity  Int?
-  mediumFighterCapacity Int?
-  largeFighterCapacity  Int?
-  corvetteCapacity      Int?
-  onlyCarriesDualPurpose Boolean @default(false)
+  // Core stats
+  hp             Int   @default(0)
+  armor          Int   @default(0)
+  energyShield   Int   @default(0)
+  armorRepairRate Float @default(0)
+  cruisingSpeed  Int   @default(0)
+  warpSpeed      Int   @default(0)
+  viewRadius     Int   @default(0)
+  storage        Int   @default(0)
 
-  // Fragment unlock system
-  isFragmentUnlocked Boolean @default(false)
-  fragments          ShipFragment[]
+  // Aircraft stats (fighters / corvettes) — flattened aircraft_stats
+  aircraftType        String? // raw game value: "Light" | "Mid" | "Heavy"
+  aircraftDualPurpose Boolean @default(false)
+  battleMoveTypeName  String?
+  aircraftFormationSize Int?
 
-  modules        ShipModule[]
+  // Production cost (flattened)
+  prodMetal        Int @default(0)
+  prodCrystal      Int @default(0)
+  prodDeuterium    Int @default(0)
+  buildTimeSeconds Int @default(0)
+
+  // Ship-level damage_per_minute (flattened)
+  dpmAntiShip            Int @default(0)
+  dpmAntiAir             Int @default(0)
+  dpmSiege               Int @default(0)
+  dpmHpRecovery          Int @default(0)
+  dpmOperationEfficiency Int @default(0)
+
+  // Ratings (flattened) — values like "A" | "C" | "--"
+  ratingAntiShip      String?
+  ratingAntiAir       String?
+  ratingSiege         String?
+  ratingSupport       String?
+  ratingSurvivability String?
+  ratingStrategic     String?
+
+  // Misc game flags
+  isSp   Int @default(0)
+  bpType Int @default(0)
+  isRe   Int @default(0)
+
+  // Display-only metadata
+  features String[] @default([])
+
+  // Admin visibility toggle — hides the ship from the public site.
+  visible Boolean @default(true)
+
+  systems     System[]
+  hangarStats ShipHangarStat[]
+  affixes     ShipAffix[]
+  fragments   ShipFragment[]
+
   shipBlueprints ShipBlueprint[]
 
-  @@unique([name, variant])
+  // No (name, variant) unique: ~24 distinct blueprints legitimately share a
+  // name + variant letter (different variant_name / ship_id). gameId is the
+  // real key the importer upserts on.
   @@index([type])
+  @@index([shortName])
+  @@index([visible])
 }
 
-model ShipModule {
-  id        Int        @id @default(autoincrement())
-  shipId    Int
-  ship      Ship       @relation(fields: [shipId], references: [id], onDelete: Cascade)
-  kind      ModuleKind
-  system    String
-  isDefault Boolean    @default(false)
-  isUnknown Boolean    @default(false)
-  img       String?
-  name      String?
+// Ship-level hangar summary (ships.json hangar_stats) — used directly by the
+// fleet builder for carrier capacity and by the blueprint library AIRCRAFT box.
+model ShipHangarStat {
+  id               Int     @id @default(autoincrement())
+  shipId           Int
+  ship             Ship    @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  craftType        String  // "uav" | "corvette" | "large_fighter" | "medium_fighter" | …
+  capacity         Int     @default(0)
+  carriesDualPurpose Boolean @default(false)
+  slotQuantity     Int     @default(0)
+  systemName       String?
+  moduleName       String?
+  moduleShortName  String?
 
-  // Stats — only the columns relevant to the kind are populated.
-  hp           Int?
-  antiship     Int?
-  antiair      Int?
-  siege        Int?
-  cruise       Int?
-  warp         Int?
-  armor        Int?
-  extraHp      Int?
-  energyShield Int?
-  hpRecovery   Int?
-  storage      Int?
-
-  sources          ModuleSource[]
-  subsystems       Subsystem[]
-  moduleBlueprints ModuleBlueprint[]
-
-  @@unique([shipId, system])
   @@index([shipId])
 }
 
-model ModuleSource {
-  id       Int        @id @default(autoincrement())
+model ShipAffix {
+  id     Int     @id @default(autoincrement())
+  shipId Int
+  ship   Ship    @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  name   String
+  desc   String?
+  order  Int     @default(0)
+
+  @@index([shipId])
+}
+
+model System {
+  id        Int     @id @default(autoincrement())
+  shipId    Int
+  ship      Ship    @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  index     Int
+  // Supercapital build code: "M1" | "A1" | "B2" | … Null for non-supercaps and
+  // the always-included base systems (Armor/Power/Energy/Command).
+  code      String?
+  name      String
+  label     String?
+  iconKey   String?
+  systemTypeName String // "Weapon" | "Armor" | "Subsystem" | "Command" | "Power" | "Hangar"
+
+  hp           Int @default(0)
+  armor        Int @default(0)
+  energyShield Int @default(0)
+  slotCount    Int @default(0)
+
+  mainSystem Boolean @default(false)
+  attackable Boolean @default(false)
+
+  group                     Int?
+  includedWithBlueprint     Boolean?
+  pointRequiredForUnlockGroup Int?
+  unlockRequired            Boolean?
+
+  // System-level damage_per_minute (flattened, nullable → 0 when absent)
+  dpmAntiShip            Int @default(0)
+  dpmAntiAir             Int @default(0)
+  dpmSiege               Int @default(0)
+  dpmHpRecovery          Int @default(0)
+  dpmOperationEfficiency Int @default(0)
+
+  slots           Slot[]
+  systemBlueprints SystemBlueprint[]
+
+  @@index([shipId])
+  @@index([code])
+}
+
+model Slot {
+  id       Int     @id @default(autoincrement())
+  systemId Int
+  system   System  @relation(fields: [systemId], references: [id], onDelete: Cascade)
+  slotIndex Int
+  quantity  Int     @default(1)
+  antiAircraftCooperativeEfficiency Int?
+
+  // Slot-level damage_per_minute (flattened)
+  dpmAntiShip            Int @default(0)
+  dpmAntiAir             Int @default(0)
+  dpmSiege               Int @default(0)
+  dpmHpRecovery          Int @default(0)
+  dpmOperationEfficiency Int @default(0)
+
+  modules Module[]
+
+  @@index([systemId])
+}
+
+model Module {
+  id     Int    @id @default(autoincrement())
+  slotId Int
+  slot   Slot   @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  name        String
+  shortName   String  @default("")
+  typeName    String  @default("")
+  description String  @default("")
+
+  prioritizedTargetLabel String?
+  trajectory             String?
+
+  // Hangar (flattened module.hangar)
+  hangarCapacity  Int?
+  hangarCraftType String?
+
+  // carried_craft_damage_per_minute (flattened)
+  ccDpmAntiShip            Int @default(0)
+  ccDpmAntiAir             Int @default(0)
+  ccDpmSiege               Int @default(0)
+  ccDpmHpRecovery          Int @default(0)
+  ccDpmOperationEfficiency Int @default(0)
+
+  weapon        Weapon?
+  moduleEffects ModuleEffect[]
+  carriedCraft  CarriedCraft[]
+
+  @@index([slotId])
+}
+
+model ModuleEffect {
+  id       Int     @id @default(autoincrement())
   moduleId Int
-  module   ShipModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  // Contributor name; matches utils/credits.ts entries.
+  module   Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   name     String
+  // For UAV/aircraft hangars the value is malformed: its last two digits encode
+  // the carried quantity. The importer leaves the raw value here; consumers
+  // decode quantity via shipModel.ts helpers when needed.
+  value    Int?
+  attrName String?
+  attrDesc String?
+  desc     String?
+  descSimp String?
+  order    Int     @default(0)
 
   @@index([moduleId])
 }
 
-model Subsystem {
-  id       Int           @id @default(autoincrement())
+model CarriedCraft {
+  id       Int     @id @default(autoincrement())
   moduleId Int
-  module   ShipModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  count    Int
-  title    String
+  module   Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   name     String
-  kind     SubsystemKind
+  quantity Int     @default(0)
+  order    Int     @default(0)
 
-  // Weapon / attack-UAV fields
-  damageType       DamageType?
-  target           WeaponTarget?
-  lockonEfficiency Int?
-  alpha            Int?
-
-  // Hanger / UAV fields
-  hanger   String?
-  capacity Int?
-  onlyCarriesDualPurpose Boolean @default(false)
-  // Repair UAVs only
-  repair   Int?
-
-  // Stats — flat scalars
-  cooldown         Float?
-  lockOnTime       Float?
-  duration         Float?
-  damageFrequency  Float?
-  attacksPerRoundA Int?
-  attacksPerRoundB Int?
-  // UAV operation count (A x B)
-  operationCountA Int?
-  operationCountB Int?
-
-  attributes       SubsystemAttribute[]
-  targetCategories SubsystemTargetCategory[]
-  uavPriorities    SubsystemUavPriority[]
+  dpmAntiShip            Int @default(0)
+  dpmAntiAir             Int @default(0)
+  dpmSiege               Int @default(0)
+  dpmHpRecovery          Int @default(0)
+  dpmOperationEfficiency Int @default(0)
 
   @@index([moduleId])
 }
 
-model SubsystemAttribute {
-  id          Int       @id @default(autoincrement())
-  subsystemId Int
-  subsystem   Subsystem @relation(fields: [subsystemId], references: [id], onDelete: Cascade)
-  // Matches keys of `attributes` in utils/ships.ts
-  attribute   String
+model Weapon {
+  id       Int    @id @default(autoincrement())
+  moduleId Int    @unique
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
-  @@index([subsystemId])
+  intervalSeconds  Float?
+  cdTimeSeconds    Float?
+  roundsPerCycle   Int?
+  ammoCount        Int?
+  operationCount   Int?
+  operationValue   Int?
+  operationStrength Int?
+  weaponLevel      Int?
+
+  weaponTypeName   String?
+  damageTypeName   String?
+  damagePerHit     Int?
+  healingValue     Int?
+  durationSeconds  Float?
+
+  aircraftRangeName       String?
+  attackRangeName         String?
+  specialTargetLogicName  String?
+
+  // weapon.damage_per_minute (flattened)
+  dpmAntiShip            Float @default(0)
+  dpmAntiAir             Float @default(0)
+  dpmSiege               Float @default(0)
+  dpmHpRecovery          Int   @default(0)
+  dpmOperationEfficiency Int   @default(0)
+
+  // anti_aircraft_effects (flattened, nested under damage_per_minute)
+  aaCooldownReductionPercent Int?
+  aaDamagePerHitDelta        Int?
+  aaDurationReductionPercent Int?
+
+  // buff_applied (flattened)
+  buffEffectId        Int?
+  buffDesc            String?
+  buffAttrName        String?
+  buffAttrDescTemplate String?
+  buffAttrDesc        String?
+
+  targetPriorities TargetPriority[]
+
+  @@index([moduleId])
 }
 
-// One row per { subsystem, antiship/antiair/siege }
-model SubsystemTargetCategory {
-  id          Int       @id @default(autoincrement())
-  subsystemId Int
-  subsystem   Subsystem @relation(fields: [subsystemId], references: [id], onDelete: Cascade)
-  // "antiship" | "antiair" | "siege"
-  category    String
-  position    Int
-  damage      Int
+model TargetPriority {
+  id           Int      @id @default(autoincrement())
+  weaponId     Int
+  weapon       Weapon   @relation(fields: [weaponId], references: [id], onDelete: Cascade)
+  priorityRank Int
+  order        Int      @default(0)
 
-  priorities SubsystemTargetType[]
+  shipTypes TargetType[]
 
-  @@unique([subsystemId, category])
+  @@index([weaponId])
 }
 
-model SubsystemTargetType {
-  id         Int                     @id @default(autoincrement())
-  categoryId Int
-  category   SubsystemTargetCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  order      Int
-  // "Frigate" | "Cruiser" | "Fighter" | "Corvette" | "Landing Ship" | etc.
-  targetType String
+model TargetType {
+  id               Int            @id @default(autoincrement())
+  targetPriorityId Int
+  targetPriority   TargetPriority @relation(fields: [targetPriorityId], references: [id], onDelete: Cascade)
+  targetType       String
+  targetHitRate    Int            @default(0)
+  order            Int            @default(0)
 
-  @@index([categoryId])
+  @@index([targetPriorityId])
 }
 
-// Flat priority list for misc UAV subsystems whose targetPriority is an array
-// rather than the antiship/antiair/siege-keyed object.
-model SubsystemUavPriority {
-  id          Int       @id @default(autoincrement())
-  subsystemId Int
-  subsystem   Subsystem @relation(fields: [subsystemId], references: [id], onDelete: Cascade)
-  order       Int
-  targetType  String
+// ============================================================================
+// Fragments
+// ============================================================================
 
-  @@index([subsystemId])
+model BlueprintFragment {
+  id           Int     @id @default(autoincrement())
+  // Game fragment_id; importer connectOrCreates by this.
+  gameId       Int?    @unique
+  // Not unique: the same display name (e.g. "Data 01 …") recurs across ships
+  // with different fragment_ids, so gameId is the real key.
+  name         String
+  description  String?
+  imagePath    String?
+  common       Boolean @default(false)
+  exchangeCost Int     @default(0)
+
+  ships         ShipFragment[]
+  userFragments UserFragment[]
+}
+
+model ShipFragment {
+  id               Int               @id @default(autoincrement())
+  shipId           Int
+  ship             Ship              @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  fragmentId       Int
+  fragment         BlueprintFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
+  quantityRequired Int               @default(0)
+  group            Int?
+  index            Int?
+
+  @@unique([shipId, fragmentId])
+  @@index([shipId])
 }
 
 // ============================================================================
@@ -297,9 +446,7 @@ model BlueprintAccount {
   accountName  String
   lastSaved    DateTime @default(now())
 
-  // 9 tech-point pools (one per category the UI tracks). Modeled as columns
-  // because the structure is fixed and 1:1 with the parent — a child table
-  // would be ceremony without normalization benefit.
+  // 9 tech-point pools (one per category the UI tracks).
   unassignedTp0 Int @default(0)
   unassignedTp1 Int @default(0)
   unassignedTp2 Int @default(0)
@@ -326,38 +473,22 @@ model ShipBlueprint {
   techPoints       Int              @default(0)
   mirrorTechPoints Boolean          @default(false)
 
-  moduleBlueprints ModuleBlueprint[]
+  systemBlueprints SystemBlueprint[]
 
   @@unique([accountId, shipId])
 }
 
-model ModuleBlueprint {
+// Per-supercapital-system unlock tracking (was ModuleBlueprint in v3). The
+// trackable unit is now a coded System (M1, A1, …) rather than a leaf module.
+model SystemBlueprint {
   id              Int           @id @default(autoincrement())
   shipBlueprintId Int
   shipBlueprint   ShipBlueprint @relation(fields: [shipBlueprintId], references: [id], onDelete: Cascade)
-  moduleId        Int
-  module          ShipModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  systemId        Int
+  system          System        @relation(fields: [systemId], references: [id], onDelete: Cascade)
   unlocked        Boolean       @default(false)
 
-  @@unique([shipBlueprintId, moduleId])
-}
-
-model BlueprintFragment {
-  id   Int    @id @default(autoincrement())
-  name String @unique
-
-  ships ShipFragment[]
-  userFragments UserFragment[]
-}
-
-model ShipFragment {
-  shipId           Int
-  ship             Ship              @relation(fields: [shipId], references: [id], onDelete: Cascade)
-  fragmentId       Int
-  fragment         BlueprintFragment @relation(fields: [fragmentId], references: [id], onDelete: Cascade)
-  quantityRequired Int
-
-  @@id([shipId, fragmentId])
+  @@unique([shipBlueprintId, systemId])
 }
 
 model UserFragment {
@@ -386,9 +517,9 @@ model SavedFleet {
   updatedAt        DateTime            @updatedAt
   instances        FleetShipInstance[]
 
-  isAngulum        Boolean             @default(false)
-  isActive         Boolean             @default(false)
-  order            Int                 @default(0)
+  isAngulum Boolean @default(false)
+  isActive  Boolean @default(false)
+  order     Int     @default(0)
 }
 
 model FleetShipInstance {

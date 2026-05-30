@@ -498,5 +498,19 @@ export const changelog: readonly Changelog[] = [
     notes: [
       "First pass on adding blueprint fragments."
     ]
+  },
+  {
+    type: "release",
+    version: "4.0.0",
+    release: "2026-05-29",
+    notes: [
+      "Rebuilt the entire ship database around the full ships.json structure (ships → systems → slots → modules → weapons → target priorities).",
+      "Split the sidebar into Infinite Archive (Blueprint Library, System Library) and Infinite Workshop (Blueprint Tracker, Fleet Builder, Mail Editor).",
+      "Added the Blueprint Library: browse every ship by class with firepower, aircraft, basic stats, combat roles, variants, and per-system details.",
+      "Renamed the Module Library to the System Library and rebuilt it around full system + weapon data.",
+      "Redesigned the system detail view with primary stats, full module cards, and attack/operation priorities.",
+      "Overhauled the Admin panel: table-by-table editing, a read-only SQL view, a JSON importer, and a per-ship visibility toggle.",
+      "Added a command-line importer that loads ships.json and copies ship images in one step."
+    ]
   }
 ];

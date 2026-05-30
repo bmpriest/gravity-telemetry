@@ -17,11 +17,28 @@
 
 ## Ship Data
 
-Feel free to use the ship data, which can be found in [`/data/ships.ts`](./data/ships.ts). It is out of date and I will be moving towards a database solution, but will attempt to keep a copy for easy export.
+As of v4.0 the ship catalogue is stored in a normalized PostgreSQL schema
+(`Ship → System → Slot → Module → Weapon → TargetPriority`, see
+[`prisma/schema.prisma`](./prisma/schema.prisma)) and the canonical source is a
+`ships.json` file (an object keyed by ship id).
 
-To quickly convert the data to JSON, you can copy the array object and run `JSON.stringify(<data>)` in your browser console.
+The rich view model the UI consumes is described in
+[`/utils/shipModel.ts`](./utils/shipModel.ts); the trimmed legacy `AllShip`
+shape used by the fleet builder and blueprint tracker lives in
+[`/utils/ships.ts`](./utils/ships.ts).
 
-Each ship follows the data structures in their type declarations in [`/utils/ships.ts`](./utils/ships.ts).
+### Importing
+
+- **CLI (data + images):** `npm run import -- output` reads
+  `output/json/ships.json`, copies every image in `output/ships` into
+  `public/ships`, then imports the catalogue.
+- **Seed:** `npm run db:seed` imports `output/json/ships.json` (if present) and
+  bootstraps the admin user. Images are not copied by the seed.
+- **Admin UI:** the Admin → Import tab runs the same importer on an uploaded
+  `ships.json`. Image files must be copied into `public/ships` manually when
+  importing this way.
+
+Re-imports are idempotent: ships are upserted by their game id.
 
 ## Project Setup
 

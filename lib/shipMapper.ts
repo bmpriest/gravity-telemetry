@@ -1,464 +1,208 @@
 /**
- * Maps a Prisma `Ship` (with deep includes) into the legacy `AllShip` shape that
- * the frontend already consumes. Doing this server-side keeps the API contract
- * stable while the storage layer moves to Postgres — every page that touches
- * `useUserStore.shipData` continues to see the same union type.
+ * Legacy compatibility mapper. Produces the v3 `AllShip` shape (utils/ships.ts)
+ * from the v4.0 normalized schema so the fleet builder and blueprint tracker —
+ * which still consume `useUserStore.shipData` as `AllShip[]` — keep working
+ * without a rewrite.
  *
- * The transformation is the inverse of `prisma/seed.ts`: enum identifiers are
- * mapped back to the human-readable strings the UI uses, and the normalized
- * subsystem/target tables are folded back into the nested object the legacy
- * `AllShip` type expects.
+ * What the legacy consumers actually read:
+ *   - identity: id, name, title, variant, variantName, hasVariants, manufacturer, img
+ *   - fleet:    type, row, commandPoints, serviceLimit, fighterType, dualPurpose,
+ *               carrier capacities (direct fields + supercap module hangars)
+ *   - tracker:  fragments / isFragmentUnlocked, and per-supercap "modules"
+ *               (one per coded system) with { id, system, name, img, default }.
+ *
+ * The richer rendering (System/Blueprint Library) uses the RichShip model
+ * instead — see lib/richShipMapper.ts.
  */
 
+import type { Prisma } from "@prisma/client";
 import type { AllShip } from "@/utils/ships";
 import { resolveShipImage } from "@/utils/ships";
+import { resolveSystemIcon } from "@/utils/icons";
+import { aircraftSize, isSupercapital } from "@/utils/shipModel";
 
-// ============================================================================
-// Prisma input shape — matches `shipInclude` below. We avoid importing Prisma's
-// generated `Ship & { modules: ... }` payload type because it would force every
-// caller to also import Prisma type helpers; instead we describe the same shape
-// locally with a minimal interface.
-// ============================================================================
-
-interface DbTargetType { order: number; targetType: string }
-interface DbTargetCategory { category: string; position: number; damage: number; priorities: DbTargetType[] }
-interface DbUavPriority { order: number; targetType: string }
-interface DbAttribute { attribute: string }
-interface DbSubsystem {
-  id: number;
-  count: number;
-  title: string;
-  name: string;
-  kind: "weapon" | "hanger" | "misc";
-  damageType: "Projectile" | "Energy" | null;
-  target: "Building" | "Aircraft" | "SmallShip" | "LargeShip" | null;
-  lockonEfficiency: number | null;
-  alpha: number | null;
-  hanger: string | null;
-  capacity: number | null;
-  onlyCarriesDualPurpose: boolean;
-  repair: number | null;
-  cooldown: number | null;
-  lockOnTime: number | null;
-  duration: number | null;
-  damageFrequency: number | null;
-  attacksPerRoundA: number | null;
-  attacksPerRoundB: number | null;
-  operationCountA: number | null;
-  operationCountB: number | null;
-  attributes: DbAttribute[];
-  targetCategories: DbTargetCategory[];
-  uavPriorities: DbUavPriority[];
-}
-interface DbSource { name: string }
-interface DbModule {
-  id: number;
-  kind: "weapon" | "propulsion" | "armor" | "unknown";
-  system: string;
-  isDefault: boolean;
-  isUnknown: boolean;
-  img: string | null;
-  name: string | null;
-  hp: number | null;
-  antiship: number | null;
-  antiair: number | null;
-  siege: number | null;
-  cruise: number | null;
-  warp: number | null;
-  armor: number | null;
-  extraHp: number | null;
-  energyShield: number | null;
-  hpRecovery: number | null;
-  storage: number | null;
-  sources: DbSource[];
-  subsystems: DbSubsystem[];
-}
-interface DbShip {
-  id: number;
-  name: string;
-  title: string;
-  img: string;
-  type: "Fighter" | "Corvette" | "Frigate" | "Destroyer" | "Cruiser" | "Battlecruiser" | "AuxiliaryShip" | "Carrier" | "Battleship";
-  variant: string;
-  variantName: string;
-  hasVariants: boolean;
-  // Manufacturer is now a joined table row, so we read the human-readable name
-  // directly. The DbShip's manufacturerId is unused by the mapper but kept on
-  // the model for the admin write paths.
-  manufacturer: { name: string };
-  row: "Front" | "Middle" | "Back";
-  commandPoints: number;
-  serviceLimit: number;
-  fighterType: "Small" | "Medium" | "Large" | null;
-  fightersPerSquadron: number | null;
-  dualPurpose: boolean;
-  smallFighterCapacity: number | null;
-  mediumFighterCapacity: number | null;
-  largeFighterCapacity: number | null;
-  corvetteCapacity: number | null;
-  onlyCarriesDualPurpose: boolean;
-  isFragmentUnlocked: boolean;
-  fragments: { fragmentId: number; quantityRequired: number }[];
-  modules: DbModule[];
-}
-
-/**
- * Standard Prisma include used by every ship-fetching route. Centralizing it
- * means the mapper and the queries can never drift out of sync.
- */
-export const shipInclude = {
+export const legacyShipInclude = {
   manufacturer: true,
-  fragments: {
+  hangarStats: true,
+  fragments: { select: { fragmentId: true, quantityRequired: true } },
+  systems: {
+    orderBy: { index: "asc" as const },
     select: {
-      fragmentId: true,
-      quantityRequired: true,
-    }
-  },
-  modules: {
-    include: {
-      sources: true,
-      subsystems: {
-        include: {
-          attributes: true,
-          targetCategories: { include: { priorities: { orderBy: { order: "asc" as const } } } },
-          uavPriorities: { orderBy: { order: "asc" as const } },
+      id: true,
+      code: true,
+      name: true,
+      iconKey: true,
+      systemTypeName: true,
+      includedWithBlueprint: true,
+      hp: true,
+      armor: true,
+      energyShield: true,
+      dpmAntiShip: true,
+      dpmAntiAir: true,
+      dpmSiege: true,
+      slots: {
+        orderBy: { slotIndex: "asc" as const },
+        select: {
+          quantity: true,
+          modules: { select: { id: true, hangarCraftType: true, hangarCapacity: true } },
         },
       },
     },
   },
+} satisfies Prisma.ShipInclude;
+
+type DbShipLegacy = Prisma.ShipGetPayload<{ include: typeof legacyShipInclude }>;
+
+const HANGER_BY_CRAFT: Readonly<Record<string, "Small Fighter" | "Medium Fighter" | "Large Fighter" | "Corvette">> = {
+  small_fighter: "Small Fighter",
+  medium_fighter: "Medium Fighter",
+  large_fighter: "Large Fighter",
+  corvette: "Corvette",
 };
 
-// ============================================================================
-// Enum → display-string mappers (inverse of seed.ts)
-// ============================================================================
-
-function shipTypeToDisplay(t: DbShip["type"]): string {
-  return t === "AuxiliaryShip" ? "Auxiliary Ship" : t;
-}
-
-function targetToDisplay(t: NonNullable<DbSubsystem["target"]>): string {
-  return t === "SmallShip" ? "Small Ship" : t === "LargeShip" ? "Large Ship" : t;
-}
-
-// ============================================================================
-// Subsystem mapper
-// ============================================================================
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapSubsystemStats(sub: DbSubsystem): any {
-  // For misc-UAV subsystems the targetPriority is the flat uavPriorities array.
-  // For everything else it's the antiship/antiair/siege keyed object built from
-  // targetCategories. A subsystem with neither is treated as having no stats.
-  const hasUavPriorities = sub.uavPriorities.length > 0;
-  const hasTargetCategories = sub.targetCategories.length > 0;
-  const hasFlatStats = sub.cooldown !== null || sub.lockOnTime !== null || sub.duration !== null;
-
-  if (!hasUavPriorities && !hasTargetCategories && !hasFlatStats) return null;
-
-  if (hasUavPriorities) {
-    return {
-      targetPriority: sub.uavPriorities.map((p) => [p.order, p.targetType]),
-      duration: sub.duration ?? 0,
-      cooldown: sub.cooldown ?? 0,
-      lockOnTime: sub.lockOnTime ?? 0,
-      operationCount: [sub.operationCountA ?? 0, sub.operationCountB ?? 0],
-    };
-  }
-
+function supercapModules(ship: DbShipLegacy): any[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const targetPriority: any = {};
-  for (const cat of sub.targetCategories) {
-    targetPriority[cat.category] = {
-      position: cat.position,
-      damage: cat.damage,
-      ...(cat.priorities.length > 0 && {
-        priorities: cat.priorities.map((p) => [p.order, p.targetType]),
-      }),
-    };
-  }
+  const modules: any[] = [];
+  for (const sys of ship.systems) {
+    if (!sys.code) continue; // only the coded, swappable systems are "modules"
 
-  // Projectile vs energy stats are distinguished by the presence of attacksPerRound.
-  if (sub.attacksPerRoundA !== null && sub.attacksPerRoundB !== null) {
-    return {
-      targetPriority,
-      cooldown: sub.cooldown ?? 0,
-      lockOnTime: sub.lockOnTime ?? 0,
-      attacksPerRound: [sub.attacksPerRoundA, sub.attacksPerRoundB],
-      ...(sub.duration !== null && { duration: sub.duration }),
-    };
-  }
-
-  return {
-    targetPriority,
-    cooldown: sub.cooldown ?? 0,
-    lockOnTime: sub.lockOnTime ?? 0,
-    duration: sub.duration ?? 0,
-    damageFrequency: sub.damageFrequency ?? 0,
-  };
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapSubsystem(sub: DbSubsystem): any {
-  const attrs = sub.attributes.length > 0 ? sub.attributes.map((a) => a.attribute) : null;
-
-  if (sub.kind === "weapon") {
-    return {
-      id: sub.id,
-      type: "weapon",
-      count: sub.count,
-      title: sub.title,
-      name: sub.name,
-      damageType: sub.damageType,
-      target: sub.target ? targetToDisplay(sub.target) : null,
-      lockonEfficiency: sub.lockonEfficiency,
-      alpha: sub.alpha ?? 0,
-      attributes: attrs,
-      stats: mapSubsystemStats(sub),
-    };
-  }
-
-  if (sub.kind === "hanger") {
-    // Three flavors: aircraft (Small/Medium/Large Fighter, Corvette), repair UAV
-    // (has `repair`), or misc UAV (has flat targetPriority via uavPriorities).
-    const isAircraft =
-      sub.hanger === "Small Fighter" ||
-      sub.hanger === "Medium Fighter" ||
-      sub.hanger === "Large Fighter" ||
-      sub.hanger === "Corvette";
-
-    if (isAircraft) {
-      return {
-        id: sub.id,
-        type: "hanger",
-        count: sub.count,
-        title: sub.title,
-        name: sub.name,
-        hanger: sub.hanger,
-        capacity: sub.capacity ?? 0,
-        onlyCarriesDualPurpose: sub.onlyCarriesDualPurpose,
-        attributes: attrs,
-      };
+    // Hanger subsystems (fighter / corvette only — UAV hangars aren't carrier slots).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subsystems: any[] = [];
+    for (const slot of sys.slots) {
+      for (const m of slot.modules) {
+        const hanger = m.hangarCraftType ? HANGER_BY_CRAFT[m.hangarCraftType] : undefined;
+        if (!hanger) continue;
+        subsystems.push({
+          id: m.id,
+          type: "hanger",
+          count: slot.quantity,
+          title: "",
+          name: hanger,
+          hanger,
+          capacity: m.hangarCapacity ?? 0,
+          onlyCarriesDualPurpose: false,
+          attributes: null,
+        });
+      }
     }
 
-    if (sub.repair !== null) {
-      return {
-        id: sub.id,
-        type: "hanger",
-        count: sub.count,
-        title: sub.title,
-        name: sub.name,
-        hanger: sub.hanger,
-        capacity: sub.capacity ?? 0,
-        repair: sub.repair,
-        attributes: attrs,
-      };
-    }
+    const stats =
+      sys.systemTypeName === "Armor"
+        ? { type: "armor", armor: sys.armor || null, extraHP: sys.hp || null, energyShield: sys.energyShield || null, hp: sys.hp }
+        : sys.systemTypeName === "Power"
+          ? { type: "propulsion", cruise: null, warp: null, hp: sys.hp }
+          : { type: "weapon", antiship: sys.dpmAntiShip || null, antiair: sys.dpmAntiAir || null, siege: sys.dpmSiege || null, hp: sys.hp };
 
-    // Attack UAV vs misc UAV: attack UAVs have damageType + target + alpha,
-    // misc UAVs (Spotter/Shield/Info/Recon) have just stats with the flat
-    // targetPriority array.
-    if (sub.damageType !== null) {
-      return {
-        id: sub.id,
-        type: "hanger",
-        count: sub.count,
-        title: sub.title,
-        name: sub.name,
-        hanger: sub.hanger,
-        capacity: sub.capacity ?? 0,
-        damageType: sub.damageType,
-        target: sub.target ? targetToDisplay(sub.target) : null,
-        lockonEfficiency: sub.lockonEfficiency,
-        alpha: sub.alpha ?? 0,
-        attributes: attrs,
-        stats: mapSubsystemStats(sub),
-      };
-    }
-
-    return {
-      id: sub.id,
-      type: "hanger",
-      count: sub.count,
-      title: sub.title,
-      name: sub.name,
-      hanger: sub.hanger,
-      capacity: sub.capacity ?? 0,
-      attributes: attrs,
-      stats: mapSubsystemStats(sub),
-    };
-  }
-
-  // misc subsystem
-  return {
-    id: sub.id,
-    type: "misc",
-    count: sub.count,
-    title: sub.title,
-    name: sub.name,
-    attributes: attrs,
-  };
-}
-
-// ============================================================================
-// Module mapper
-// ============================================================================
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapModule(mod: DbModule): any {
-  if (mod.isUnknown || mod.kind === "unknown") {
-    return {
-      id: mod.id,
-      type: "unknown",
-      unknown: true,
-      img: mod.img ?? "",
-      system: mod.system,
-      ...(mod.isDefault && { default: true }),
-    };
-  }
-
-  const sourcedFrom = mod.sources.length > 0 ? mod.sources.map((s) => s.name) : null;
-  const subsystems = mod.subsystems.map(mapSubsystem);
-
-  if (mod.kind === "weapon") {
-    return {
-      id: mod.id,
+    modules.push({
+      id: sys.id,
       type: "known",
-      img: mod.img ?? "",
-      system: mod.system,
-      ...(mod.isDefault && { default: true }),
-      sourcedFrom,
-      name: mod.name ?? "",
-      stats: {
-        type: "weapon",
-        antiship: mod.antiship,
-        antiair: mod.antiair,
-        siege: mod.siege,
-        hp: mod.hp ?? 0,
-      },
+      system: sys.code,
+      name: sys.name,
+      img: resolveSystemIcon(sys.iconKey, sys.systemTypeName),
+      sourcedFrom: null,
+      ...(sys.includedWithBlueprint ? { default: true } : {}),
+      stats,
       subsystems,
-    };
+    });
   }
-
-  if (mod.kind === "propulsion") {
-    return {
-      id: mod.id,
-      type: "known",
-      img: mod.img ?? "",
-      system: mod.system,
-      ...(mod.isDefault && { default: true }),
-      sourcedFrom,
-      name: mod.name ?? "",
-      stats: {
-        type: "propulsion",
-        cruise: mod.cruise,
-        warp: mod.warp,
-        hp: mod.hp ?? 0,
-      },
-      subsystems,
-    };
-  }
-
-  // armor (misc) module
-  return {
-    id: mod.id,
-    type: "known",
-    img: mod.img ?? "",
-    system: mod.system,
-    ...(mod.isDefault && { default: true }),
-    sourcedFrom,
-    name: mod.name ?? "",
-    stats: {
-      type: "armor",
-      armor: mod.armor,
-      extraHP: mod.extraHp,
-      energyShield: mod.energyShield,
-      ...(mod.hpRecovery !== null && { hpRecovery: mod.hpRecovery }),
-      ...(mod.storage !== null && { storage: mod.storage }),
-      hp: mod.hp ?? 0,
-    },
-    subsystems,
-  };
+  return modules;
 }
 
-// ============================================================================
-// Ship mapper
-// ============================================================================
+interface CapacityAcc {
+  small: number;
+  medium: number;
+  large: number;
+  corvette: number;
+  onlyDP: boolean;
+  any: boolean;
+}
 
-export function mapShip(ship: DbShip, siblings?: Map<string, string>): AllShip {
-  // Apply the image fallback chain so every consumer (single-ship and full
-  // catalogue routes) sees a non-empty img. `siblings` is optional — without
-  // it the resolver still falls back to the per-type generic icon.
-  const resolvedImg = resolveShipImage(
-    { img: ship.img, name: ship.name, type: shipTypeToDisplay(ship.type), hasVariants: ship.hasVariants },
-    siblings,
-  );
+function shipCapacities(ship: DbShipLegacy): CapacityAcc {
+  const acc: CapacityAcc = { small: 0, medium: 0, large: 0, corvette: 0, onlyDP: false, any: false };
+  // Dedupe exact-duplicate hangar_stats rows the source occasionally emits.
+  const seen = new Set<string>();
+  for (const h of ship.hangarStats) {
+    const key = `${h.craftType}|${h.capacity}|${h.systemName}|${h.moduleName}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const cap = h.capacity;
+    if (h.carriesDualPurpose) acc.onlyDP = true;
+    switch (h.craftType) {
+      case "small_fighter": acc.small += cap; acc.any = true; break;
+      case "medium_fighter": acc.medium += cap; acc.any = true; break;
+      case "large_fighter": acc.large += cap; acc.any = true; break;
+      case "corvette": acc.corvette += cap; acc.any = true; break;
+      default: break; // uav etc. — not a carrier slot
+    }
+  }
+  return acc;
+}
+
+export function mapLegacyShip(ship: DbShipLegacy, siblings: Map<string, string> | undefined, hasVariants: boolean): AllShip {
+  const img = resolveShipImage({ img: ship.img, name: ship.name, type: ship.type, hasVariants }, siblings);
 
   const base = {
     id: ship.id,
-    name: ship.name,
+    name: ship.shortName || ship.name,
     title: ship.title,
-    img: resolvedImg,
+    img,
     variant: ship.variant,
     variantName: ship.variantName,
-    hasVariants: ship.hasVariants,
+    hasVariants,
     manufacturer: ship.manufacturer.name,
-    row: ship.row,
+    row: ship.rowPosition,
     commandPoints: ship.commandPoints,
     serviceLimit: ship.serviceLimit,
-    isFragmentUnlocked: ship.isFragmentUnlocked,
-    fragments: ship.fragments ?? [],
+    isFragmentUnlocked: ship.fragments.length > 0,
+    fragments: ship.fragments.map((f) => ({ fragmentId: f.fragmentId, quantityRequired: f.quantityRequired })),
   };
-
-  const displayType = shipTypeToDisplay(ship.type);
 
   if (ship.type === "Fighter") {
     return {
       ...base,
       type: "Fighter",
-      fighterType: ship.fighterType ?? "Small",
-      fightersPerSquadron: ship.fightersPerSquadron ?? 0,
-      dualPurpose: ship.dualPurpose,
-    } as AllShip;
+      fighterType: aircraftSize(ship.aircraftType) ?? "Small",
+      fightersPerSquadron: ship.aircraftFormationSize ?? 0,
+      dualPurpose: ship.aircraftDualPurpose,
+    } as unknown as AllShip;
   }
 
   if (ship.type === "Corvette") {
-    return { ...base, type: "Corvette" } as AllShip;
+    return { ...base, type: "Corvette" } as unknown as AllShip;
   }
 
-  if (ship.type === "Frigate" || ship.type === "Destroyer" || ship.type === "Cruiser") {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cap: any = { ...base, type: displayType };
-    if (ship.smallFighterCapacity !== null) cap.smallFighterCapacity = ship.smallFighterCapacity;
-    if (ship.mediumFighterCapacity !== null) {
-      cap.mediumFighterCapacity = ship.mediumFighterCapacity;
-      cap.onlyCarriesDualPurpose = ship.onlyCarriesDualPurpose;
-    }
-    if (ship.largeFighterCapacity !== null) {
-      cap.largeFighterCapacity = ship.largeFighterCapacity;
-      cap.onlyCarriesDualPurpose = ship.onlyCarriesDualPurpose;
-    }
-    if (ship.corvetteCapacity !== null) cap.corvetteCapacity = ship.corvetteCapacity;
-    return cap as AllShip;
+  if (isSupercapital(ship.type)) {
+    return {
+      ...base,
+      type: ship.type,
+      onlyCarriesDualPurpose: false,
+      modules: supercapModules(ship),
+    } as unknown as AllShip;
   }
 
-  // Supercapital — has modules.
-  return {
-    ...base,
-    type: displayType,
-    onlyCarriesDualPurpose: ship.onlyCarriesDualPurpose,
-    modules: ship.modules.map(mapModule),
-  } as AllShip;
+  // Frigate / Destroyer / Cruiser (+ Base / Utility, which the public site hides).
+  const cap = shipCapacities(ship);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out: any = { ...base, type: ship.type };
+  if (cap.small) out.smallFighterCapacity = cap.small;
+  if (cap.medium) { out.mediumFighterCapacity = cap.medium; out.onlyCarriesDualPurpose = cap.onlyDP; }
+  if (cap.large) { out.largeFighterCapacity = cap.large; out.onlyCarriesDualPurpose = cap.onlyDP; }
+  if (cap.corvette) out.corvetteCapacity = cap.corvette;
+  return out as AllShip;
 }
 
-export function mapShips(ships: DbShip[]): AllShip[] {
-  // Pre-build a `${name}::${variantUpper}` → img map so resolveShipImage can
-  // walk it without an O(n²) per-ship scan. Empty img strings are skipped so
-  // an A variant without an image doesn't shadow the type-icon fallback.
+export function mapLegacyShips(ships: DbShipLegacy[]): AllShip[] {
+  // hasVariants = more than one ship shares this (type, shortName).
+  const counts = new Map<string, number>();
+  for (const s of ships) {
+    const key = `${s.type}::${s.shortName}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
   const siblings = new Map<string, string>();
   for (const s of ships) {
-    if (s.img && s.img.length > 0) {
-      siblings.set(`${s.name}::${s.variant.toUpperCase()}`, s.img);
-    }
+    if (s.img) siblings.set(`${s.name}::${s.variant.toUpperCase()}`, s.img);
   }
-  return ships.map((s) => mapShip(s, siblings));
+  return ships.map((s) => mapLegacyShip(s, siblings, (counts.get(`${s.type}::${s.shortName}`) ?? 1) > 1));
 }

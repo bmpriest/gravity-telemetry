@@ -61,10 +61,10 @@ export default function BlueprintsModuleCard({ ship, mod, owner, onChange }: Pro
         )}
         <Link
           className="fo-btn grow border-blue-300 bg-blue-300 text-sm text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-          href={`/modules/module-library?s=${encodeURIComponent(ship.name)}&m=${encodeURIComponent(mod.system)}`}
+          href={`/modules/system-library?ship=${ship.id}&sys=${mod.id}`}
           target="_blank"
         >
-          View in Module Library
+          View in System Library
         </Link>
       </div>
     </div>

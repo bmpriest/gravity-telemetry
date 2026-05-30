@@ -1,7 +1,7 @@
 {
   "name": "gravity-telemetry",
   "private": false,
-  "version": "3.3.0",
+  "version": "4.0.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,6 +14,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "import": "tsx scripts/import-ships.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

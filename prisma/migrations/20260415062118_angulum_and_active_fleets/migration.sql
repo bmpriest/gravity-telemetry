@@ -1,4 +1,0 @@
--- AlterTable
-ALTER TABLE "SavedFleet" ADD COLUMN     "isActive" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "isAngulum" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "order" INTEGER NOT NULL DEFAULT 0;

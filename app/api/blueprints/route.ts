@@ -75,12 +75,15 @@ async function loadAccountsForUser(userId: string) {
     orderBy: { accountIndex: "asc" },
     include: {
       shipBlueprints: {
-        include: { moduleBlueprints: true },
+        include: { systemBlueprints: true },
       },
       userFragments: true,
     },
   });
 
+  // The tracker's per-supercap "module" unlock is now a coded System unlock.
+  // The wire shape keeps the `moduleId` key (= System.id) so the client store
+  // and UI stay unchanged.
   return accounts.map((a) => ({
     accountIndex: a.accountIndex,
     accountName: a.accountName,
@@ -91,8 +94,8 @@ async function loadAccountsForUser(userId: string) {
       unlocked: sb.unlocked,
       techPoints: sb.techPoints,
       mirrorTechPoints: sb.mirrorTechPoints,
-      modules: sb.moduleBlueprints.map((mb) => ({
-        moduleId: mb.moduleId,
+      modules: sb.systemBlueprints.map((mb) => ({
+        moduleId: mb.systemId,
         unlocked: mb.unlocked,
       })),
     })),
@@ -141,8 +144,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Replace ship/module blueprints. ShipBlueprint cascades to ModuleBlueprint.
+    // Replace ship/system blueprints. ShipBlueprint cascades to SystemBlueprint.
     await prisma.shipBlueprint.deleteMany({ where: { accountId: account.id } });
+
+    // Guard against stale system ids (e.g. after a re-import) so a single bad id
+    // doesn't fail the whole save.
+    const validSystemIds = new Set(
+      (await prisma.system.findMany({ select: { id: true } })).map((s) => s.id),
+    );
 
     for (const ship of body.ships) {
       const sb = await prisma.shipBlueprint.create({
@@ -154,11 +163,12 @@ export async function POST(req: NextRequest) {
           mirrorTechPoints: ship.mirrorTechPoints,
         },
       });
-      if (ship.modules.length > 0) {
-        await prisma.moduleBlueprint.createMany({
-          data: ship.modules.map((m) => ({
+      const validModules = ship.modules.filter((m) => validSystemIds.has(m.moduleId));
+      if (validModules.length > 0) {
+        await prisma.systemBlueprint.createMany({
+          data: validModules.map((m) => ({
             shipBlueprintId: sb.id,
-            moduleId: m.moduleId,
+            systemId: m.moduleId,
             unlocked: m.unlocked,
           })),
         });

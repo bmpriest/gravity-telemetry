@@ -12,8 +12,9 @@ type Showcase = {
 };
 
 const carouselShowcases: Showcase[] = [
+  { title: "Blueprint Library", description: "Browse every ship blueprint, stats, variants, and systems", route: "/modules/blueprint-library", src: "/carousel/bpTracker.png", tag: { name: "New", color: "bg-orange-200" } },
+  { title: "System Library", description: "Browse through a collection of Super Capital systems and stats", route: "/modules/system-library", src: "/carousel/moduleLibrary.png", tag: { name: "Updated", color: "bg-green-300" } },
   { title: "Blueprint Tracker", description: "Track your blueprint collection and share it with others", route: "/modules/blueprint-tracker", src: "/carousel/bpTracker.png", tag: { name: "New", color: "bg-purple-300" } },
-  { title: "Module Library", description: "Browse through a collection of Super Capital modules and stats", route: "/modules/module-library", src: "/carousel/moduleLibrary.png", tag: { name: "Updated", color: "bg-green-300" } },
   { title: "Mail Editor", description: "Easily write, edit, save, and share mails for your community", route: "/modules/mail-editor/edit", src: "/carousel/mailEditor.png", tag: { name: "New", color: "bg-orange-200" } },
 ];
 
