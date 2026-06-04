@@ -205,8 +205,10 @@ model ShipAffix {
 
 model System {
   id        Int     @id @default(autoincrement())
-  shipId    Int
-  ship      Ship    @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  shipId    Int?
+  ship      Ship?   @relation(fields: [shipId], references: [id], onDelete: Cascade)
+  carriedCraftId Int?
+  carriedCraft   CarriedCraft? @relation(fields: [carriedCraftId], references: [id], onDelete: Cascade)
   index     Int
   // Supercapital build code: "M1" | "A1" | "B2" | … Null for non-supercaps and
   // the always-included base systems (Armor/Power/Energy/Command).
@@ -240,6 +242,7 @@ model System {
   systemBlueprints SystemBlueprint[]
 
   @@index([shipId])
+  @@index([carriedCraftId])
   @@index([code])
 }
 
@@ -326,6 +329,8 @@ model CarriedCraft {
   dpmHpRecovery          Int @default(0)
   dpmOperationEfficiency Int @default(0)
 
+  systems System[]
+
   @@index([moduleId])
 }
 
@@ -334,8 +339,9 @@ model Weapon {
   moduleId Int    @unique
   module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
-  intervalSeconds  Float?
-  cdTimeSeconds    Float?
+  intervalSeconds   Float?
+  cdTimeSeconds     Float?
+  lockOnTimeSeconds Float?
   roundsPerCycle   Int?
   ammoCount        Int?
   operationCount   Int?

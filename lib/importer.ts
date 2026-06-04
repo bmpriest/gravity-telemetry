@@ -118,6 +118,7 @@ function buildWeapon(w: Json) {
   return {
     intervalSeconds: numOrNull(w.interval_seconds),
     cdTimeSeconds: numOrNull(w.cd_time_seconds),
+    lockOnTimeSeconds: numOrNull(w.lock_on_time_seconds),
     roundsPerCycle: numOrNull(w.rounds_per_cycle),
     ammoCount: numOrNull(w.ammo_count),
     operationCount: numOrNull(w.operation_count),
@@ -189,6 +190,9 @@ function buildModule(m: Json) {
         quantity: round(c.quantity),
         order: i,
         ...intDpm(c.damage_per_minute),
+        systems: Array.isArray(c.systems) && c.systems.length > 0
+          ? { create: c.systems.map(buildSystem) }
+          : undefined,
       })),
     },
     weapon: m.weapon ? { create: buildWeapon(m.weapon) } : undefined,
