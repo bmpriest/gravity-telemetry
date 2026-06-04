@@ -25,3 +25,8 @@ logs
 !.env.example
 
 output
+
+public/*
+!public/ships/classes/*
+!public/ships/companies/*
+public/ships/*_te_*

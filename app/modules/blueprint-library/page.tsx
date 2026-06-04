@@ -73,36 +73,39 @@ export default function BlueprintLibraryPage() {
     return (
       <div className="flex min-h-[calc(100dvh-8rem)] w-full flex-col items-center p-4 sm:p-8">
         <div className="w-full max-w-[80rem]">
-          <button type="button" onClick={backToList} className="mb-4 inline-flex items-center gap-2 rounded-lg bg-neutral-200 px-3 py-1.5 font-medium transition duration-300 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700">
-            <img className="size-5 dark:invert" src="/ui/arrowLeft.svg" aria-hidden="true" /> All blueprints
-          </button>
+          <div className="flex flex-row">
+
+            <h1 className="grow text-left content-end text-2xl font-bold transition duration-500">{currentShip.name}</h1>
+
+            <button type="button" onClick={backToList} className="mb-4 inline-flex items-center gap-2 rounded-lg bg-neutral-200 px-3 py-1.5 font-medium transition duration-300 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700">
+              <img className="size-5 dark:invert" src="/ui/arrowLeft.svg" aria-hidden="true" /> All blueprints
+            </button>
+          </div>
 
           {/* ---- top bar: logo, name, variants, CP ---- */}
-          <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-neutral-100/40 p-4 transition duration-500 sm:flex-row sm:items-center dark:bg-neutral-900">
+          <div className="mb-4 max-h-20 flex flex-row gap-2 rounded-2xl bg-neutral-100/40 p-4 transition duration-500 sm:flex-row sm:items-center dark:bg-neutral-900">
             {currentShip.manufacturer.logo && (
-              <img className="size-12 shrink-0 select-none rounded object-contain" src={currentShip.manufacturer.logo} alt={currentShip.manufacturer.name} />
+              <img className="object-scale-down size-16 transition duration-500 select-none rounded  invert dark:invert-0" src={currentShip.manufacturer.logo} alt={currentShip.manufacturer.name} />
             )}
-            <div className="grow">
-              <h1 className="text-2xl font-bold transition duration-500">{currentShip.shortName}</h1>
-              <p className="text-neutral-600 transition duration-500 dark:text-neutral-400">{currentShip.title || currentShip.type}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+
+            <div className="grow flex flex-wrap items-center gap-2">
               {variantGroup.map((v) => (
                 <button
                   key={v.id}
                   type="button"
                   onClick={() => openVariant(v.id)}
                   title={v.variantName}
-                  className={`flex min-w-[3rem] flex-col items-center rounded-lg px-2 py-1 transition duration-300 ${v.id === currentShip.id ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900" : "bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700"}`}
+                  className={`flex flex-row min-w-40 min-h-10 items-center rounded-lg px-2 py-1 transition duration-300 ${v.id === currentShip.id ? "bg-warning text-neutral-50" : "bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700"}`}
                 >
-                  <span className="text-lg font-bold leading-none">{v.variant}</span>
-                  <span className="max-w-[6rem] truncate text-[0.6rem] leading-tight">{v.variantName || "—"}</span>
+                  <span className="-ml-1 text-3xl font-bold text-neutral-400 leading-none">{v.variant}</span>
+                  <span className="ml-2 grow text-sm font-semibold max-w-[8rem] leading-tight">{v.variantName || "—"}</span>
                 </button>
               ))}
             </div>
-            <div className="flex shrink-0 flex-col items-center rounded-xl bg-neutral-800 px-4 py-2 text-white transition duration-500 dark:bg-neutral-200 dark:text-neutral-900">
-              <span className="text-2xl font-bold leading-none">{currentShip.commandPoints}</span>
-              <span className="text-[0.65rem] uppercase tracking-wide">Command Pts</span>
+            <div className="flex shrink-0 flex-row items-center rounded-xl px-4 py-2 text-white transition duration-500 ">
+              <img className="size-6 invert dark:invert-0" src="/fleet/icon_command_point_1.png"></img>
+              <span className="ml-1 text-2xl font-bold leading-none">{currentShip.commandPoints}</span>
+              {/* <span className="text-[0.65rem] uppercase tracking-wide">Command Pts</span> */}
             </div>
           </div>
 
@@ -116,13 +119,13 @@ export default function BlueprintLibraryPage() {
               {!supercap && currentSystem ? (
                 <div>
                   <button type="button" onClick={backToSystems} className="mb-4 inline-flex items-center gap-2 rounded-lg bg-neutral-200 px-3 py-1.5 font-medium transition duration-300 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700">
-                    <img className="size-5 dark:invert" src="/ui/arrowLeft.svg" aria-hidden="true" /> Back to systems
+                    <img className="size-5" src="/ui/arrowLeft.svg" aria-hidden="true" /> Back to systems
                   </button>
                   <SystemView system={currentSystem} shipType={currentShip.type} />
                 </div>
               ) : (
                 <div className="flex flex-col gap-2">
-                  <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-neutral-500 transition duration-500 dark:text-neutral-400">Systems</h3>
+                  {/* <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-neutral-500 transition duration-500 dark:text-neutral-400">Systems</h3> */}
                   {sortedSystems.map((sys) => (
                     <BlueprintSystemCard
                       key={sys.id}

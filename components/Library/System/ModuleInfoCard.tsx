@@ -13,7 +13,7 @@ function Row({ icon, label, value }: { icon: string; label: string; value: React
   return (
     <div className="flex w-full items-center justify-between gap-2 py-0.5">
       <span className="inline-flex items-center gap-1.5 text-left font-medium text-neutral-700 transition duration-500 dark:text-neutral-300">
-        <img className="size-5 shrink-0 select-none transition duration-500 dark:invert" src={icon} aria-hidden="true" onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} />
+        <img className="size-5 shrink-0 select-none transition duration-500 invert" src={icon} aria-hidden="true" onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")} />
         {label}
       </span>
       <span className="text-right transition duration-500">{value}</span>
@@ -37,6 +37,23 @@ const F = {
   effect: "/ui/researchAgreement.svg",
   range: "/weapons/upgrades/aircraftHitrate.svg",
   craft: "/weapons/icons/aircraft.png",
+  ico_damageType: "/weapons/attributes/icon_damage_type.png", // damage type
+  ico_target: "/weapons/attributes/icon_target_shipattack.png", // prioritized target
+  ico_ballistic: "/weapons/attributes/icon_trajectory_type.png", // ballistic type
+  ico_duration: "/weapons/attributes/icon_duration.png", // duration
+  ico_lockOntime: "/weapons/attributes/icon_lockingtime.png", // lock-on time
+  ico_DPH: "/weapons/attributes/icon_weapon_damage.png", // damage per hit
+  ico_interval: "/weapons/attributes/icon_weapon_interval.png", // interval
+  ico_ammoRounds: "/weapons/attributes/icon_weapon_launches.png", // ammo x rounds per cycle
+  ico_cooldown: "/weapons/attributes/icon_weapon_interval.png", // cooldown
+
+  ico_opDPM: "/weapons/attributes/icon_firepower_job_ratio.png", // operation efficiency
+  ico_opValue: "/weapons/attributes/icon_job_value.png", // operation value
+  ico_opStrength: "/weapons/attributes/icon_job_strength.png", // operation strength
+  ico_opCount: "/weapons/attributes/icon_work_amount.png" // operation count
+
+
+
 };
 
 const CRAFT_LABELS: Readonly<Record<string, string>> = {
@@ -92,7 +109,7 @@ export default function ModuleInfoCard({ module, system }: Props) {
             <Row
               icon={primaryDpm.icon}
               label={`${primaryDpm.label} DPM`}
-              value={<span className="font-semibold text-yellow-600 dark:text-yellow-400">{Math.round(primaryDpm.value).toLocaleString()}/min</span>}
+              value={<span className="font-semibold text-yellow-600 dark:text-yellow-400">{Math.round(primaryDpm.value * module.quantity).toLocaleString()}/min</span>}
             />
           )}
 
@@ -101,27 +118,28 @@ export default function ModuleInfoCard({ module, system }: Props) {
             <Row key={`cc${i}`} icon={F.craft} label={e.name} value={`x${decodeHangarQuantity(e.value) || module.carriedCraft[i]?.quantity || ""}`} />
           ))}
 
-          <Row icon={F.operation} label="Operation Count" value={!hasAttack && w?.operationCount ? w.operationCount.toLocaleString() : null} />
-          <Row icon={F.operation} label="Operation Value" value={w?.operationValue ? w.operationValue.toLocaleString() : null} />
-          <Row icon={F.operation} label="Operation Strength" value={w?.operationStrength ? w.operationStrength.toLocaleString() : null} />
-          <Row icon={F.damageType} label="Damage Type" value={w?.damageTypeName ?? null} />
-          <Row icon={F.target} label="Prioritized Target" value={module.prioritizedTargetLabel ?? null} />
-          <Row icon={F.ballistic} label="Ballistic Type" value={module.trajectory ?? null} />
-          <Row icon={F.alpha} label="Damage Per Hit" value={w?.damagePerHit ? w.damagePerHit.toLocaleString() : null} />
+          <Row icon={F.ico_opCount} label="Operation Count" value={!hasAttack && w?.operationCount ? w.operationCount.toLocaleString() : null} />
+          <Row icon={F.ico_opValue} label="Operation Value" value={w?.operationValue ? w.operationValue.toLocaleString() : null} />
+          <Row icon={F.ico_opStrength} label="Operation Strength" value={w?.operationStrength ? w.operationStrength.toLocaleString() : null} />
+          <Row icon={F.ico_damageType} label="Damage Type" value={w?.damageTypeName ?? null} />
+          <Row icon={F.ico_target} label="Prioritized Target" value={module.prioritizedTargetLabel ?? null} />
+          <Row icon={F.ico_ballistic} label="Ballistic Type" value={module.trajectory ?? null} />
+          <Row icon={F.ico_DPH} label="Damage Per Hit" value={w?.damagePerHit ? w.damagePerHit.toLocaleString() : null} />
           <Row icon={F.hp} label="Healing Per Hit" value={w?.healingValue ? w.healingValue.toLocaleString() : null} />
 
           {/* ---- timing block ---- */}
           {(w?.durationSeconds || w?.ammoCount || w?.cdTimeSeconds || w?.intervalSeconds) && (
             <div className="my-2 h-px w-full bg-neutral-200 transition duration-500 dark:bg-neutral-800" />
           )}
-          <Row icon={F.duration} label="Duration" value={w?.durationSeconds ? `${w.durationSeconds}s` : null} />
+          <Row icon={F.ico_duration} label="Duration" value={w?.durationSeconds ? `${w.durationSeconds}s` : null} />
           <Row
-            icon={F.rounds}
+            icon={F.ico_ammoRounds}
             label={hasAttack ? "Ammo × Rounds/Cycle" : "Operation Count"}
             value={w?.ammoCount && w?.roundsPerCycle ? `${w.ammoCount} × ${w.roundsPerCycle}` : null}
           />
-          <Row icon={F.time} label="Cooldown" value={w?.cdTimeSeconds ? `${w.cdTimeSeconds}s` : null} />
-          <Row icon={F.time} label="Damage Interval" value={w?.intervalSeconds ? `${w.intervalSeconds}s` : null} />
+          <Row icon={F.ico_cooldown} label="Cooldown" value={w?.cdTimeSeconds ? `${w.cdTimeSeconds}s` : null} />
+          <Row icon={F.ico_interval} label="Damage Interval" value={w?.intervalSeconds ? `${w.intervalSeconds}s` : null} />
+          {/* <Row icon={F.ico_lockOntime} label="Lock-On Time" value={w?. ? `${w.}s` : null} /> */}
 
           {/* ---- effects block ---- */}
           {(bottomEffects.length > 0 || aircraftRange) && (
@@ -159,7 +177,7 @@ export default function ModuleInfoCard({ module, system }: Props) {
               <div className="mt-2 inline-flex items-center gap-1.5">
                 <img className="size-4 select-none transition duration-500 dark:invert" src={primaryDpm.icon} aria-hidden="true" />
                 <span className="text-sm transition duration-500">{primaryDpm.label}</span>
-                <span className="font-semibold text-yellow-600 transition duration-500 dark:text-yellow-400">{Math.round(primaryDpm.value).toLocaleString()}/min</span>
+                <span className="font-semibold text-yellow-600 transition duration-500 dark:text-yellow-400">{Math.round(primaryDpm.value * module.quantity).toLocaleString()}/min</span>
               </div>
             )}
 

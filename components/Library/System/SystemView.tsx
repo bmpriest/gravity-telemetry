@@ -25,7 +25,7 @@ export default function SystemView({ system, shipType }: Props) {
       {/* ---- Header box ---- */}
       <div className="flex w-full flex-col gap-4 rounded-2xl bg-neutral-100/40 p-5 transition duration-500 sm:flex-row sm:items-center dark:bg-neutral-900">
         <div className="flex items-center gap-4">
-          <img className="size-14 shrink-0 select-none transition duration-500 dark:invert" src={icon} alt={system.systemTypeName} />
+          <img className="size-14 shrink-0 select-none transition duration-500" src={icon} alt={system.systemTypeName} />
           <div className="flex flex-col">
             <div className="flex flex-wrap items-center gap-2">
               {supercap && system.code && (

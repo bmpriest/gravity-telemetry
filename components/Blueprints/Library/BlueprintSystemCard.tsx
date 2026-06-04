@@ -19,15 +19,15 @@ export default function BlueprintSystemCard({ system, supercap, href, onClick }:
   const inner = (
     <>
       <div className="flex h-full w-16 shrink-0 items-center justify-center bg-neutral-200/70 transition duration-500 dark:bg-neutral-800">
-        <img className="size-9 select-none transition duration-500 dark:invert" src={icon} alt={system.systemTypeName} />
+        <img className="size-9 select-none transition duration-500" src={icon} alt={system.systemTypeName} />
       </div>
       <div className="flex min-w-0 grow items-center gap-2 px-3 py-3">
         {supercap && system.code && (
           <span className="rounded-md bg-neutral-800 px-1.5 py-0.5 text-xs font-bold text-white transition duration-500 dark:bg-neutral-200 dark:text-neutral-900">{system.code}</span>
         )}
         <div className="min-w-0">
-          <p className="truncate font-medium leading-tight transition duration-500">{system.name}</p>
-          <p className="truncate text-xs text-neutral-500 transition duration-500 dark:text-neutral-400">{system.systemTypeName}</p>
+          <p className="truncate text-left font-medium leading-tight transition duration-500">{system.name}</p>
+          <p className="truncate text-left text-xs text-neutral-500 transition duration-500 dark:text-neutral-400">{system.systemTypeName}</p>
         </div>
       </div>
     </>

@@ -43,12 +43,12 @@ function FireStat({ icon, label, value }: { icon: string; label: string; value: 
 }
 
 const RATING_ICONS: Readonly<Record<string, string>> = {
-  antiShip: "/weapons/stats/antiship.svg",
-  antiAir: "/weapons/stats/antiair.svg",
-  siege: "/weapons/stats/siege.svg",
-  support: "/weapons/stats/hpRecovery.svg",
-  survivability: "/weapons/stats/armor.svg",
-  strategic: "/ui/trophy.svg",
+  antiShip: "/weapons/ratings/icon_antiship.png",
+  antiAir: "/weapons/ratings/icon_airdefense.png",
+  siege: "/weapons/ratings/icon_siege.png",
+  support: "/weapons/ratings/icon_support.png",
+  survivability: "/weapons/ratings/icon_viability.png",
+  strategic: "/weapons/ratings/icon_strategy.png",
 };
 
 function Rating({ icon, label, value }: { icon: string; label: string; value: string | null }) {
@@ -129,6 +129,10 @@ export default function BlueprintStatBoxes({ ship }: Props) {
 
   return (
     <div className="flex w-full flex-col gap-4">
+      <div className="rounded-2xl bg-neutral-100/40 p-4 transition duration-500 dark:bg-neutral-900">
+        <img src={ship.img}></img>
+      </div>
+
       <Box title="Firepower Stats">
         <div className="flex flex-col gap-2">
           <FireStat icon="/weapons/stats/antiship.svg" label="Anti-Ship" value={ship.dpm.antiShip} />

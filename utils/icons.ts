@@ -11,22 +11,22 @@
 const ICON_BASE = "/weapons/icons";
 
 const ICON_KEY_MAP: Readonly<Record<string, string>> = {
-  icon_system_type_battle: "cannon.png",
-  icon_system_armor: "armor.png",
-  icon_system_type_command: "command.png",
-  icon_system_dynamic: "speed.png",
-  icon_system_hangar: "aircraft.png",
-  icon_system_engineering: "storage.png",
-  icon_system_type_subsystem: "jamming.png",
+  icon_system_type_battle: "cannon_l.png",
+  icon_system_armor: "armor_l.png",
+  icon_system_type_command: "command_l.png",
+  icon_system_dynamic: "speed_l.png",
+  icon_system_hangar: "aircraft_l.png",
+  icon_system_engineering: "storage_l.png",
+  icon_system_type_subsystem: "jamming_l.png",
 };
 
 const SYSTEM_TYPE_MAP: Readonly<Record<string, string>> = {
-  Weapon: "cannon.png",
-  Armor: "armor.png",
-  Command: "command.png",
-  Power: "speed.png",
-  Hangar: "aircraft.png",
-  Subsystem: "jamming.png",
+  Weapon: "cannon_l.png",
+  Armor: "armor_l.png",
+  Command: "command_l.png",
+  Power: "speed_l.png",
+  Hangar: "aircraft_l.png",
+  Subsystem: "jamming_l.png",
 };
 
 /** Returns the icon path for a system, preferring its iconKey. */

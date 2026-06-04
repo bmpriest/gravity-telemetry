@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUserStore } from "@/stores/userStore";
 import {
-  BLUEPRINT_TYPE_ORDER, isSupercapital, sortSystemsForLibrary, type RichShip,
+  BLUEPRINT_TYPE_ORDER, isSupercapital, sortSystemsForLibrary, type RichShip, type RichSystem
 } from "@/utils/shipModel";
 import SystemView from "@/components/Library/System/SystemView";
 import SystemListCard from "@/components/Library/System/SystemListCard";
@@ -43,6 +43,16 @@ export default function SystemLibraryPage() {
   const sortedSystems = useMemo(() => (currentShip ? sortSystemsForLibrary(currentShip.systems) : []), [currentShip]);
   const currentSystem = useMemo(() => sortedSystems.find((s) => String(s.id) === sysParam), [sortedSystems, sysParam]);
 
+  function countSystems(sortedSystems: RichSystem[]) {
+    let i = 0;
+    for (const sys of sortedSystems) {
+      if (sys.code) {
+        i++;
+      }
+    }
+    return i;
+  }
+
   function selectShip(ship: RichShip) {
     router.push(`/modules/system-library?ship=${ship.id}`);
   }
@@ -69,16 +79,16 @@ export default function SystemLibraryPage() {
                 className={`flex items-center gap-2 rounded-lg p-2 text-left transition duration-300 hover:bg-neutral-200 dark:hover:bg-neutral-800 ${currentShip?.id === ship.id ? "bg-neutral-200 dark:bg-neutral-800" : ""}`}
               >
                 <img
-                  className="size-10 shrink-0 rounded object-contain"
+                  className="h-12 shrink-0 rounded object-contain "
                   src={ship.img || `/ships/classes/${ship.type.toLowerCase()}.svg`}
                   alt={ship.shortName}
                   onError={(e) => ((e.target as HTMLImageElement).src = `/ships/classes/${ship.type.toLowerCase()}.svg`)}
                 />
                 <div className="min-w-0">
                   <p className="truncate font-medium leading-tight transition duration-500">{ship.shortName}</p>
-                  <p className="truncate text-xs text-neutral-500 transition duration-500 dark:text-neutral-400">
+                  {/* <p className="truncate text-xs text-neutral-500 transition duration-500 dark:text-neutral-400">
                     {ship.variant}{ship.variantName ? ` · ${ship.variantName}` : ""}
-                  </p>
+                  </p> */}
                 </div>
               </button>
             ))
@@ -92,7 +102,7 @@ export default function SystemLibraryPage() {
           {currentShip && (
             <div className="mb-4 flex items-center gap-4 rounded-2xl bg-neutral-100/40 p-4 transition duration-500 dark:bg-neutral-900">
               <img
-                className="h-20 w-28 shrink-0 object-contain"
+                className="h-28 shrink-0 object-contain overflow-visible"
                 src={currentShip.img || `/ships/classes/${currentShip.type.toLowerCase()}.svg`}
                 alt={currentShip.shortName}
                 onError={(e) => ((e.target as HTMLImageElement).src = `/ships/classes/${currentShip.type.toLowerCase()}.svg`)}
@@ -100,7 +110,7 @@ export default function SystemLibraryPage() {
               <div>
                 <h1 className="text-2xl font-bold transition duration-500">{currentShip.shortName}</h1>
                 <p className="text-neutral-600 transition duration-500 dark:text-neutral-400">{currentShip.title || currentShip.type}</p>
-                <p className="mt-1 text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">{sortedSystems.length} systems</p>
+                <p className="mt-1 text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">{countSystems(sortedSystems)} systems</p>
               </div>
             </div>
           )}
@@ -117,7 +127,7 @@ export default function SystemLibraryPage() {
               <SystemView system={currentSystem} shipType={currentShip!.type} />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-auto auto-cols-fr grid-rows-auto gap-3">
               {sortedSystems.map((sys) => (
                 <SystemListCard key={sys.id} system={sys} shipType={currentShip!.type} onClick={() => selectSystem(sys.id)} />
               ))}
