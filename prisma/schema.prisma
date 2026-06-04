@@ -253,6 +253,7 @@ model Slot {
   slotIndex Int
   quantity  Int     @default(1)
   antiAircraftCooperativeEfficiency Int?
+  antimissileprotectRatio           Int?
 
   // Slot-level damage_per_minute (flattened)
   dpmAntiShip            Int @default(0)
@@ -358,6 +359,7 @@ model Weapon {
   aircraftRangeName       String?
   attackRangeName         String?
   specialTargetLogicName  String?
+  earlyWarningEfficiency  Int?
 
   // weapon.damage_per_minute (flattened)
   dpmAntiShip            Float @default(0)

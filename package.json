@@ -15,6 +15,7 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "import": "tsx scripts/import-ships.ts",
+    "import:virtuoso": "tsx scripts/import-ships.ts virtuoso",
     "postinstall": "prisma generate"
   },
   "prisma": {
