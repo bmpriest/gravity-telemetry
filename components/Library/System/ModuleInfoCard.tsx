@@ -1,6 +1,7 @@
 "use client";
 
 import { getModulePrimaryDpm, decodeHangarQuantity, type RichModule, type RichSystem } from "@/utils/shipModel";
+import { DPM_META } from "@/utils/icons";
 
 interface Props {
   module: RichModule;
@@ -56,6 +57,31 @@ const F = {
 
 };
 
+type DpmCat = "antiShip" | "antiAir" | "siege";
+
+const SHIP_TYPE_DPM_CAT: Readonly<Record<string, DpmCat>> = {
+  Frigate: "antiShip",
+  Destroyer: "antiShip",
+  Cruiser: "antiShip",
+  Battlecruiser: "antiShip",
+  "Auxiliary Ship": "antiShip",
+  Carrier: "antiShip",
+  Battleship: "antiShip",
+  Fighter: "antiAir",
+  "Small Fighter": "antiAir",
+  "Medium Fighter": "antiAir",
+  "Large Fighter": "antiAir",
+  "Fighter/Scout": "antiAir",
+  "Fighter/Attacker": "antiAir",
+  "Fighter/Interceptor": "antiAir",
+  "Fighter/Bomber": "antiAir",
+  UAV: "antiAir",
+  Corvette: "antiAir",
+  "Landing Ship": "antiAir",
+};
+
+const DPM_CAT_ORDER: DpmCat[] = ["antiShip", "antiAir", "siege"];
+
 const CRAFT_LABELS: Readonly<Record<string, string>> = {
   uav: "UAV",
   corvette: "Corvette",
@@ -80,6 +106,19 @@ export default function ModuleInfoCard({ module, system }: Props) {
 
   const priorities = w?.targetPriorities ?? [];
   const showPriority = priorities.length > 0;
+
+  const primaryCat = primaryDpm?.key as DpmCat | undefined;
+  const catOrder: DpmCat[] = primaryCat
+    ? [primaryCat, ...DPM_CAT_ORDER.filter((c) => c !== primaryCat)]
+    : DPM_CAT_ORDER;
+
+  const prioritiesByCategory = catOrder.map((cat) => {
+    const catPriorities = priorities
+      .map((p) => ({ ...p, shipTypes: p.shipTypes.filter((t) => (SHIP_TYPE_DPM_CAT[t.targetType] ?? "siege") === cat) }))
+      .filter((p) => p.shipTypes.length > 0);
+    const dpmValue = w?.dpm[cat] ?? 0;
+    return { cat, priorities: catPriorities, dpmValue };
+  }).filter(({ cat, priorities: ps, dpmValue }) => ps.length > 0 && (cat !== "siege" || dpmValue > 0));
 
   // Effects rendered at the bottom (non-hangar modules) + a synthetic entry for
   // a non-NONE aircraft range.
@@ -173,35 +212,44 @@ export default function ModuleInfoCard({ module, system }: Props) {
           <div className="flex w-full flex-col items-start xl:w-[40%] xl:items-end">
             <h5 className="text-lg font-medium transition duration-500">{hasAttack ? "Attack" : "Operation"} Priority</h5>
 
-            {primaryDpm && (
-              <div className="mt-2 inline-flex items-center gap-1.5">
-                <img className="size-4 select-none transition duration-500 dark:invert" src={primaryDpm.icon} aria-hidden="true" />
-                <span className="text-sm transition duration-500">{primaryDpm.label}</span>
-                <span className="font-semibold text-yellow-600 transition duration-500 dark:text-yellow-400">{Math.round(primaryDpm.value * module.quantity).toLocaleString()}/min</span>
-              </div>
-            )}
-
-            <div className="mt-3 flex w-full flex-col gap-3">
-              {priorities.map((p, idx) => (
-                <div key={idx} className="flex w-full flex-col rounded-xl shadow">
-                  <div className="flex items-center gap-2 rounded-t-xl bg-neutral-200 px-3 py-1 transition duration-500 dark:bg-neutral-700">
-                    <span className="select-none text-sm font-semibold text-neutral-700 transition duration-500 dark:text-neutral-300">
-                      {String(p.priorityRank).padStart(2, "0")}
+            <div className="mt-3 flex w-full flex-col gap-5">
+              {prioritiesByCategory.map(({ cat, priorities: catPriorities, dpmValue }) => (
+                <div key={cat} className="flex w-full flex-col gap-2">
+                  <div className="inline-flex items-center gap-1.5">
+                    <img className="size-4 select-none transition duration-500 dark:invert" src={DPM_META[cat].icon} aria-hidden="true" />
+                    <span className="text-sm font-semibold transition duration-500">
+                      {cat === primaryDpm?.key && module.prioritizedTargetLabel ? module.prioritizedTargetLabel : DPM_META[cat].label}
                     </span>
-                    <span className="text-sm text-neutral-600 transition duration-500 dark:text-neutral-400">Priority</span>
+                    {dpmValue > 0 && (
+                      <span className="font-semibold text-yellow-600 transition duration-500 dark:text-yellow-400">
+                        {Math.round(dpmValue * module.quantity).toLocaleString()}/min
+                      </span>
+                    )}
                   </div>
-                  {p.shipTypes.map((t, ti) => (
-                    <div key={ti} className="flex w-full items-center gap-2 bg-neutral-200/25 px-3 py-0.5 transition duration-500 last:rounded-b-xl last:pb-1 dark:bg-neutral-700/40">
-                      <img
-                        className="size-4 shrink-0 select-none transition duration-500 dark:invert"
-                        src={`/ships/classes/${t.targetType.toLowerCase()}.svg`}
-                        alt={t.targetType}
-                        onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
-                      />
-                      <span className="grow text-left text-sm transition duration-500">{t.targetType}</span>
-                      <span className="text-right text-xs text-neutral-600 transition duration-500 dark:text-neutral-400">Hit: {t.targetHitRate}%</span>
-                    </div>
-                  ))}
+                  <div className="flex w-full flex-col gap-2">
+                    {catPriorities.map((p, idx) => (
+                      <div key={idx} className="flex w-full flex-col rounded-xl shadow">
+                        <div className="flex items-center gap-2 rounded-t-xl bg-neutral-200 px-3 py-1 transition duration-500 dark:bg-neutral-700">
+                          <span className="select-none text-sm font-semibold text-neutral-700 transition duration-500 dark:text-neutral-300">
+                            {String(p.priorityRank).padStart(2, "0")}
+                          </span>
+                          <span className="text-sm text-neutral-600 transition duration-500 dark:text-neutral-400">Priority</span>
+                        </div>
+                        {p.shipTypes.map((t, ti) => (
+                          <div key={ti} className="flex w-full items-center gap-2 bg-neutral-200/25 px-3 py-0.5 transition duration-500 last:rounded-b-xl last:pb-1 dark:bg-neutral-700/40">
+                            <img
+                              className="size-4 shrink-0 select-none transition duration-500 dark:invert"
+                              src={`/ships/classes/${t.targetType.toLowerCase()}.svg`}
+                              alt={t.targetType}
+                              onError={(e) => ((e.target as HTMLImageElement).style.visibility = "hidden")}
+                            />
+                            <span className="grow text-left text-sm transition duration-500">{t.targetType}</span>
+                            <span className="text-right text-xs text-neutral-600 transition duration-500 dark:text-neutral-400">Hit: {t.targetHitRate}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
