@@ -1,6 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@plugin "flyonui" {
+   themes: light --default, dark;
+}
 
 :root {
   --bg-color: #ffffff;
@@ -12,7 +15,7 @@
 
 * {
   font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !important;
-  @apply text-center text-black dark:text-white;
+  @apply text-left text-black dark:text-white;
 }
 
 body {
@@ -22,18 +25,18 @@ body {
 
 button {
   touch-action: manipulation;
-  @apply text-center text-black dark:text-white;
+  @apply text-center ;
 }
 
 a {
-  @apply text-center text-black dark:text-white;
+  @apply text-center ;
 }
 
 .editor-bg {
   background: radial-gradient(#1e232a, #080a0c);
 }
 
-.fo-btn.fo-btn-circle.fo-btn-text {
+.btn.btn-circle.btn-text {
   @apply dark:hover:bg-neutral-700;
 }
 
@@ -76,7 +79,7 @@ a {
   .tooltip-container {
     @apply flex-col;
   }
-  .tooltip-container .du-tooltip {
+  .tooltip-container .tooltip {
     @apply hidden;
   }
   .tooltip-nohover {

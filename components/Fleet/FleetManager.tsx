@@ -178,13 +178,13 @@ export default function FleetManager({ savedFleets, currentFleetId, allShips, on
                         </div>
                       )}
                       <button
-                        className="fo-btn fo-btn-xs fo-btn-primary"
+                        className="btn btn-xs btn-primary"
                         onClick={() => onLoad(fleet.id)}
                       >
                         Load
                       </button>
                       <button
-                        className="fo-btn fo-btn-xs fo-btn-text text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        className="btn btn-xs btn-text text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                         onClick={() => onDelete(fleet.id)}
                       >
                         <img className="size-3 dark:invert sepia hue-rotate-[300deg] saturate-[200%]" src="/ui/close.svg" alt="Delete" />

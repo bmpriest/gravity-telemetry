@@ -61,6 +61,7 @@ export interface RichTargetPriority {
 export interface RichWeapon {
   intervalSeconds: number | null;
   cdTimeSeconds: number | null;
+  lockOnTimeSeconds: number | null;
   roundsPerCycle: number | null;
   ammoCount: number | null;
   operationCount: number | null;
@@ -75,6 +76,7 @@ export interface RichWeapon {
   aircraftRangeName: string | null;
   attackRangeName: string | null;
   specialTargetLogicName: string | null;
+  earlyWarningEfficiency: number | null;
   dpm: Dpm;
   aaCooldownReductionPercent: number | null;
   aaDamagePerHitDelta: number | null;
@@ -102,12 +104,16 @@ export interface RichCarriedCraft {
   name: string;
   quantity: number;
   dpm: Dpm;
+  systems: RichSystem[];
 }
 
 export interface RichModule {
   id: number;
   /** slot.quantity — how many of this module the slot mounts (x1, x2, …). */
   quantity: number;
+  antiAircraftCooperativeEfficiency: number | null;
+  /** slot.antimissileprotect_ratio — anti-missile protection efficiency for this slot. */
+  antiMissileProtectRatio: number | null;
   name: string;
   shortName: string;
   typeName: string;

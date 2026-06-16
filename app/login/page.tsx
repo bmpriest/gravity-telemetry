@@ -48,6 +48,7 @@ export default function LoginPage() {
           <label className="flex w-full flex-col gap-1">
             <span className="text-sm font-medium transition duration-500">Username</span>
             <input
+              id="username"
               type="text"
               autoComplete="username"
               required
@@ -55,13 +56,14 @@ export default function LoginPage() {
               maxLength={32}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="fo-input rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+              className="input rounded-lg px-3 py-2 transition duration-500"
             />
           </label>
 
           <label className="flex w-full flex-col gap-1">
             <span className="text-sm font-medium transition duration-500">Password</span>
             <input
+              id="password"
               type="password"
               autoComplete="current-password"
               required
@@ -69,7 +71,7 @@ export default function LoginPage() {
               maxLength={200}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="fo-input rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+              className="input rounded-lg px-3 py-2 transition duration-500"
             />
           </label>
 
@@ -78,7 +80,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="fo-btn w-full rounded-lg border-blue-300 bg-blue-100 py-2 font-medium transition duration-500 hover:border-blue-400 hover:bg-blue-200 disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+            className="btn btn-primary w-full rounded-lg py-2 font-medium transition duration-500 disabled:opacity-50"
           >
             {loading ? "Logging in..." : "Log In"}
           </button>

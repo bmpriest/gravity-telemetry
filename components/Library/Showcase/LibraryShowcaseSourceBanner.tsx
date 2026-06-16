@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { AllModule } from "@/utils/ships";
+import Tooltip from "@/components/ui/Tooltip";
 
 interface Props {
   currentModule: AllModule | undefined;
@@ -51,11 +52,11 @@ export default function LibraryShowcaseSourceBanner({ currentModule }: Props) {
           Want to contribute? Check out
           <button className="flex items-center justify-center gap-1 font-medium hover:underline" type="button" onClick={handleContact}>
             how to contribute
-            <span className="du-tooltip" data-tip="Contact">
-              <span className="fo-btn fo-btn-circle fo-btn-text size-6 min-h-6">
+            <Tooltip content="Contact">
+              <span className="btn btn-circle btn-text size-6 min-h-6">
                 <img className="size-4 transition duration-500 dark:invert" src="/ui/contact.svg" alt="Contact me" />
               </span>
-            </span>
+            </Tooltip>
           </button>
         </span>
       </div>

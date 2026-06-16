@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import BlueprintsCard from "./BlueprintsCard";
+import Tooltip from "@/components/ui/Tooltip";
 import type { BlueprintAllShip, BlueprintSuperCapitalShip } from "@/utils/blueprints";
 
 interface Props {
@@ -100,21 +101,21 @@ export default function BlueprintsCategory({
             <h2 className="text-xl font-medium">
               How many unassigned <span className="text-2xl font-bold">{shipType}</span> Tech Points do you have?
             </h2>
-            <div className="fo-input-group max-w-sm">
-              <label className="fo-input-group-text" htmlFor={`unassignedTechPoints${shipType}`}>TP</label>
+            <div className="input-group max-w-sm">
+              <label className="input-group-text" htmlFor={`unassignedTechPoints${shipType}`}>TP</label>
               <div className="relative grow">
                 <input
                   id={`unassignedTechPoints${shipType}`}
                   value={unassignedTp}
                   onChange={(e) => onUnassignedTpChange(Number(e.target.value))}
                   type="number"
-                  className="peer fo-input grow border-neutral-300 bg-white text-left text-black hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
+                  className="peer input grow border-neutral-300 bg-white text-left text-black hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
                   placeholder="Tech Points"
                 />
               </div>
             </div>
             <button
-              className="du-btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-green-300 bg-green-100 py-2 transition duration-500 hover:scale-105 hover:border-green-400 hover:bg-green-200 dark:border-green-500 dark:bg-green-800 dark:text-white dark:hover:bg-green-700"
+              className="btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-green-300 bg-green-100 py-2 transition duration-500 hover:scale-105 hover:border-green-400 hover:bg-green-200 dark:border-green-500 dark:bg-green-800 dark:text-white dark:hover:bg-green-700"
               type="button"
               onClick={() => setShowTPModal(false)}
             >
@@ -126,19 +127,23 @@ export default function BlueprintsCategory({
 
       <div className="mt-4 flex items-center justify-center gap-2">
         <h3 className="text-2xl font-bold transition duration-500">{shipType}s</h3>
-        <button
-          className={`du-tooltip z-[1] translate-y-0.5 ${!isOwner ? "cursor-help" : ""}`}
-          data-tip={`${unassignedTp?.toLocaleString()} unassigned ${shipType} Tech Points`}
-          type="button"
-          disabled={!isOwner}
-          onClick={() => setShowTPModal(true)}
+        <Tooltip
+          content={`${unassignedTp?.toLocaleString()} unassigned ${shipType} Tech Points`}
+          className="z-[1] translate-y-0.5"
         >
-          <img
-            className="size-7 transition duration-500 dark:invert"
-            src={isOwner ? "/ui/plusCircle.svg" : `/ships/classes/${shipType.toLowerCase()}.svg`}
-            alt={isOwner ? `Declare unassigned ${shipType} Tech Points` : ""}
-          />
-        </button>
+          <button
+            className={!isOwner ? "cursor-help" : ""}
+            type="button"
+            disabled={!isOwner}
+            onClick={() => setShowTPModal(true)}
+          >
+            <img
+              className="size-7 transition duration-500 dark:invert"
+              src={isOwner ? "/ui/plusCircle.svg" : `/ships/classes/${shipType.toLowerCase()}.svg`}
+              alt={isOwner ? `Declare unassigned ${shipType} Tech Points` : ""}
+            />
+          </button>
+        </Tooltip>
       </div>
 
       <p className="transition duration-500">{unlockedCount}/{totalCount} unlocked</p>

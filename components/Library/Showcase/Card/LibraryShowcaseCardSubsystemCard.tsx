@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import Tooltip from "@/components/ui/Tooltip";
 import { attributes } from "@/utils/ships";
 import type { WeaponSubsystem, AircraftSubsystem, AttackUAVSubsystem, RepairUAVSubsystem, MiscSubsytem, MiscUAVSubsystem } from "@/utils/ships";
 
@@ -138,9 +139,9 @@ export default function LibraryShowcaseCardSubsystemCard({ subsystem }: Props) {
                 <span className="tooltip-nohover text-left text-xs text-neutral-800 transition duration-500 dark:text-neutral-300">
                   {attributes[attribute]}
                 </span>
-                <div className="du-tooltip inline-block shrink-0 cursor-help select-none" data-tip={attributes[attribute]}>
+                <Tooltip content={attributes[attribute]} className="inline-block shrink-0 cursor-help select-none">
                   <img className="size-4 transition duration-500 dark:invert" src="/ui/info.svg" alt="Hover for attribute description" />
-                </div>
+                </Tooltip>
               </div>
             ))}
           </div>

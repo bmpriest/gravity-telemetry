@@ -52,7 +52,7 @@ export default function BlueprintsModuleCard({ ship, mod, owner, onChange }: Pro
       <div className={`flex w-full flex-col gap-2 transition duration-500 ${!mod.unlocked ? "pointer-events-none opacity-50 brightness-50" : ""}`}>
         {owner && (
           <button
-            className="fo-btn grow border-red-300 bg-red-300 text-sm text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
+            className="btn grow border-red-300 bg-red-300 text-sm text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
             type="button"
             onClick={remove}
           >
@@ -60,7 +60,7 @@ export default function BlueprintsModuleCard({ ship, mod, owner, onChange }: Pro
           </button>
         )}
         <Link
-          className="fo-btn grow border-blue-300 bg-blue-300 text-sm text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+          className="btn grow border-blue-300 bg-blue-300 text-sm text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
           href={`/modules/system-library?ship=${ship.id}&sys=${mod.id}`}
           target="_blank"
         >

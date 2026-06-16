@@ -50,7 +50,7 @@ export default function BlueprintsModules({ ship, owner, onDone, onChange }: Pro
         })}
       </div>
       <button
-        className="fo-btn w-full grow border-green-100 bg-green-100 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-700 dark:hover:bg-green-700"
+        className="btn w-full grow border-green-100 bg-green-100 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-700 dark:hover:bg-green-700"
         type="button"
         onClick={onDone}
       >

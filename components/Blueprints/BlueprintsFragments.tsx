@@ -59,7 +59,7 @@ export default function BlueprintsFragments({ ship, userFragments, onUpdate, onD
       <div className="flex w-full items-center justify-between border-b border-neutral-300 pb-4 dark:border-neutral-700">
         <h2 className="text-xl font-bold">{ship.name} Fragments</h2>
         <button
-          className="fo-btn size-10 rounded-full border-neutral-300 bg-neutral-100 p-0 transition duration-500 hover:bg-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-500"
+          className="btn size-10 rounded-full border-neutral-300 bg-neutral-100 p-0 transition duration-500 hover:bg-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:hover:bg-neutral-500"
           type="button"
           onClick={onDone}
         >
@@ -82,7 +82,7 @@ export default function BlueprintsFragments({ ship, userFragments, onUpdate, onD
                 <input
                   type="number"
                   min={0}
-                  className="fo-input w-24 rounded-lg border-neutral-300 text-center text-black dark:border-neutral-600 dark:text-white"
+                  className="input w-24 rounded-lg border-neutral-300 text-center text-black dark:border-neutral-600 dark:text-white"
                   value={owned}
                   onChange={(e) => handleQuantityChange(req.fragmentId, Number(e.target.value))}
                 />
@@ -96,7 +96,7 @@ export default function BlueprintsFragments({ ship, userFragments, onUpdate, onD
       </div>
 
       <button
-        className="du-btn mt-6 w-full rounded-full border-blue-300 bg-blue-100 py-3 font-bold transition duration-500 hover:scale-[1.02] hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+        className="btn mt-6 w-full rounded-full border-blue-300 bg-blue-100 py-3 font-bold transition duration-500 hover:scale-[1.02] hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
         type="button"
         onClick={onDone}
       >

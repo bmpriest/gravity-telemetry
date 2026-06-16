@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import Tooltip from "@/components/ui/Tooltip";
 import { useUserStore } from "@/stores/userStore";
 import { formatDate } from "@/utils/functions";
 
@@ -149,23 +150,23 @@ export default function AppSidebar({ onContributors, onChangelog, onContact, onC
         </div>
 
         <div className="flex w-full items-center justify-center font-medium">
-          <div className="du-tooltip" data-tip="Contributors">
-            <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={onContributors}>
+          <Tooltip content="Contributors">
+            <button type="button" className="btn btn-circle btn-text" onClick={onContributors}>
               <img className="size-7 select-none transition duration-500 dark:invert" src="/ui/contributors.svg" alt="Contributors" />
             </button>
-          </div>
-          <div className="du-divider du-divider-horizontal before:transition before:duration-500 after:transition after:duration-500 dark:before:bg-neutral-600 dark:after:bg-neutral-600" />
-          <div className="du-tooltip" data-tip="Info">
-            <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={onChangelog}>
+          </Tooltip>
+          <div className="divider divider-horizontal before:transition before:duration-500 after:transition after:duration-500 dark:before:bg-neutral-600 dark:after:bg-neutral-600" />
+          <Tooltip content="Info">
+            <button type="button" className="btn btn-circle btn-text" onClick={onChangelog}>
               <img className="size-7 select-none transition duration-500 dark:invert" src="/ui/info.svg" alt="Changelog" />
             </button>
-          </div>
-          <div className="du-divider du-divider-horizontal before:transition before:duration-500 after:transition after:duration-500 dark:before:bg-neutral-600 dark:after:bg-neutral-600" />
-          <div className="du-tooltip" data-tip="Contact">
-            <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={onContact}>
+          </Tooltip>
+          <div className="divider divider-horizontal before:transition before:duration-500 after:transition after:duration-500 dark:before:bg-neutral-600 dark:after:bg-neutral-600" />
+          <Tooltip content="Contact">
+            <button type="button" className="btn btn-circle btn-text" onClick={onContact}>
               <img className="size-6 select-none transition duration-500 dark:invert" src="/ui/contact.svg" alt="Contact" />
             </button>
-          </div>
+          </Tooltip>
         </div>
       </div>
     </aside>

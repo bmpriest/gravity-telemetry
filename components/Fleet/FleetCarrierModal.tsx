@@ -76,7 +76,7 @@ export default function FleetCarrierModal({ carrierInstances, currentLoads, ship
             </p>
           </div>
         </div>
-        <button className="fo-btn fo-btn-circle fo-btn-text" type="button" onClick={onClose}>
+        <button className="btn btn-circle btn-text" type="button" onClick={onClose}>
           <img className="size-5 select-none transition duration-500 dark:invert" src="/ui/close.svg" aria-hidden="true" />
         </button>
       </div>

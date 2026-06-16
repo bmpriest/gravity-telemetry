@@ -1,31 +1,39 @@
-import daisyUI from "daisyui";
-import flowbite from "flowbite/plugin";
-import flyonUI from "flyonui";
+import flyonui from "flyonui";
+// Note the explicit `.js`: FlyonUI ships no package "exports" map, so ESM config
+// loaders (Next/Tailwind) can't resolve the extensionless "flyonui/plugin".
+import flyonuiPlugin from "flyonui/plugin.js";
 
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
-    "./node_modules/flowbite/**/*.js"
+    // Scan FlyonUI's JS so the classes/variants its components toggle at runtime
+    // (e.g. `tooltip-shown:`, `accordion-item-active:`) are generated.
+    "./node_modules/flyonui/dist/js/*.js"
+  ],
+  safelist: [
+    {
+      pattern: /col-start-/,
+    },
+    {
+      pattern: /row-start-/,
+    }
   ],
   theme: {
-    colors: {
-      body: "var(--bg-color)"
-    },
     extend: {
+      colors: {
+        body: "var(--bg-color)"
+      },
       screens: {
         lg: "1025px"
       }
     }
   },
-  plugins: [daisyUI, flowbite, flyonUI],
-  daisyui: {
-    prefix: "du-",
-    logs: false
-  },
+  // `flyonui` provides the component styles (unprefixed); `flyonui/plugin` adds the
+  // JS-state variants used by HSTooltip / HSAccordion.
+  plugins: [flyonui, flyonuiPlugin],
   flyonui: {
-    prefix: "fo-",
     logs: false
   },
   darkMode: "selector",

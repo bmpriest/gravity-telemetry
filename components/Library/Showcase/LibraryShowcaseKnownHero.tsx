@@ -47,11 +47,11 @@ export default function LibraryShowcaseKnownHero({ mod }: Props) {
           <p className="text-lg transition duration-500">
             <span className="font-medium transition duration-500">{hp.toLocaleString()}</span> System HP
           </p>
-          <div className="du-label flex w-full select-auto items-center justify-start gap-2">
+          <div className="label flex w-full select-auto items-center justify-start gap-2">
             <span className="text-left transition duration-500">{mod.default ? "Default module" : "Not a default module"}</span>
             <input
               type="checkbox"
-              className="du-checkbox disabled:cursor-auto disabled:border disabled:opacity-100"
+              className="checkbox disabled:cursor-auto disabled:border disabled:opacity-100"
               style={{ backgroundSize: "cover", backgroundColor: mod.default ? "inherit" : undefined }}
               checked={!!mod.default}
               readOnly

@@ -24,7 +24,7 @@ export default function FleetSavedFleets({ savedFleets, onClose, onLoad, onDelet
     >
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-bold transition duration-500">Saved Fleets</h3>
-        <button className="fo-btn fo-btn-circle fo-btn-text" type="button" onClick={onClose}>
+        <button className="btn btn-circle btn-text" type="button" onClick={onClose}>
           <img className="size-5 select-none transition duration-500 dark:invert" src="/ui/close.svg" aria-hidden="true" />
         </button>
       </div>
@@ -44,14 +44,14 @@ export default function FleetSavedFleets({ savedFleets, onClose, onLoad, onDelet
               </div>
               <div className="flex gap-2">
                 <button
-                  className="fo-btn fo-btn-sm border-blue-300 bg-blue-100 text-blue-800 transition duration-500 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+                  className="btn btn-sm border-blue-300 bg-blue-100 text-blue-800 transition duration-500 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
                   type="button"
                   onClick={() => onLoad(fleet.id)}
                 >
                   Load
                 </button>
                 <button
-                  className="fo-btn fo-btn-sm border-red-300 bg-red-100 text-red-800 transition duration-500 hover:bg-red-200 dark:border-red-700 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
+                  className="btn btn-sm border-red-300 bg-red-100 text-red-800 transition duration-500 hover:bg-red-200 dark:border-red-700 dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800"
                   type="button"
                   onClick={() => onDelete(fleet.id)}
                 >

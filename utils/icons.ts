@@ -38,9 +38,9 @@ export function resolveSystemIcon(iconKey: string | null | undefined, systemType
 
 /** [label, icon path] for each damage-per-minute category. */
 export const DPM_META: Readonly<Record<string, { label: string; icon: string }>> = {
-  antiShip: { label: "Anti-Ship", icon: "/weapons/stats/antiship.svg" },
-  antiAir: { label: "Anti-Air", icon: "/weapons/stats/antiair.svg" },
-  siege: { label: "Siege", icon: "/weapons/stats/siege.svg" },
-  hpRecovery: { label: "HP Recovery", icon: "/weapons/stats/hpRecovery.svg" },
-  operationEfficiency: { label: "Operation Efficiency", icon: "/weapons/types/operationCount.svg" },
+  antiShip: { label: "Anti-Ship", icon: "/weapons/attributes/icon_firepower_antiship.png" },
+  antiAir: { label: "Anti-Air", icon: "/weapons/attributes/icon_firepower_airdefense.png" },
+  siege: { label: "Siege", icon: "/weapons/attributes/icon_firepower_siege.png" },
+  hpRecovery: { label: "HP Recovery", icon: "/weapons/attributes/icon_repair.png" },
+  operationEfficiency: { label: "Operation Efficiency", icon: "/weapons/attributes/icon_firepower_job_ratio.png" },
 };

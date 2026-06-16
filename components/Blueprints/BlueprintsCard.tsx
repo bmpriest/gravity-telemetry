@@ -159,8 +159,8 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
       {owner ? (
         <div className={`flex w-full flex-col gap-2 transition duration-500 ${!ship.unlocked ? "pointer-events-none opacity-50 brightness-50" : ""}`}>
           <div className="flex w-full items-center justify-center gap-2">
-            <div className="fo-input-group max-w-sm bg-body transition duration-500">
-              <label className="fo-input-group-text" htmlFor={`techPoints${ship.name}${ship.variant}`}>TP</label>
+            <div className="input-group max-w-sm bg-body transition duration-500">
+              <label className="input-group-text" htmlFor={`techPoints${ship.name}${ship.variant}`}>TP</label>
               <div className="relative grow">
                 <input
                   id={`techPoints${ship.name}${ship.variant}`}
@@ -170,7 +170,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
                   onBlur={updateTp}
                   onKeyDown={handleEnter}
                   type="text"
-                  className="peer fo-input grow border-neutral-300 text-left text-black opacity-0 hover:border-neutral-400 focus:opacity-100 dark:border-neutral-700 dark:text-white dark:hover:border-neutral-600"
+                  className="peer input grow border-neutral-300 text-left text-black opacity-0 hover:border-neutral-400 focus:opacity-100 dark:border-neutral-700 dark:text-white dark:hover:border-neutral-600"
                   placeholder="Tech Points"
                 />
                 <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center overflow-hidden peer-focus:invisible">
@@ -179,7 +179,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               </div>
             </div>
             <button
-              className="fo-btn grow border-red-300 bg-red-300 text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
+              className="btn grow border-red-300 bg-red-300 text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
               type="button"
               onClick={remove}
             >
@@ -192,7 +192,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               {allVariants.slice(1).map((variant) => (
                 <button
                   key={variant.id}
-                  className={`fo-btn relative w-1/4 grow overflow-hidden border-red-300 bg-red-300 text-black transition duration-500 dark:border-red-600 dark:bg-red-600 dark:text-white ${variant.unlocked ? "hover:border-red-500 hover:bg-red-500 dark:hover:border-red-700 dark:hover:bg-red-700" : ""}`}
+                  className={`btn relative w-1/4 grow overflow-hidden border-red-300 bg-red-300 text-black transition duration-500 dark:border-red-600 dark:bg-red-600 dark:text-white ${variant.unlocked ? "hover:border-red-500 hover:bg-red-500 dark:hover:border-red-700 dark:hover:bg-red-700" : ""}`}
                   type="button"
                   onClick={() => removeVariant(variant)}
                 >
@@ -215,7 +215,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               <input
                 id={ship.name + ship.variant}
                 type="checkbox"
-                className="fo-switch fo-switch-primary fo-switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
+                className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
                 checked={mirror}
                 onChange={onMirror}
                 style={switchStyle}
@@ -226,7 +226,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
           
           {ship.isFragmentUnlocked && (
             <button
-              className="fo-btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+              className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
               type="button"
               onClick={() => onFragments()}
             >
@@ -240,7 +240,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
                 {(ship as BlueprintSuperCapitalShip).modules.map((mod) => (
                   <div key={mod.system} className="relative w-[45%] grow" onClick={() => toggleMod(mod as BlueprintModule)}>
                     <button
-                      className="fo-btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+                      className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
                       type="button"
                     >
                       {mod.system}
@@ -259,7 +259,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               </div>
             ) : (
               <button
-                className="fo-btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+                className="btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
                 type="button"
                 onClick={() => onModules(ship as BlueprintSuperCapitalShip)}
               >
@@ -277,7 +277,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
               {allVariants.slice(1).map((variant) => (
                 <div
                   key={variant.id}
-                  className="fo-btn relative w-1/4 grow overflow-hidden border-green-300 bg-green-300 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-600 dark:hover:bg-green-600"
+                  className="btn relative w-1/4 grow overflow-hidden border-green-300 bg-green-300 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-600 dark:hover:bg-green-600"
                 >
                   {!variant.unlocked && (
                     <div className="overlay group absolute left-1/2 top-1/2 z-[1] flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-start bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 cursor-auto">
@@ -292,7 +292,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
           
           {ship.isFragmentUnlocked && (
             <button
-              className="fo-btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+              className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
               type="button"
               onClick={() => onFragments()}
             >
@@ -302,7 +302,7 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
 
           {isSuperCap && (
             <button
-              className="fo-btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
+              className="btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
               type="button"
               onClick={() => onModules(ship as BlueprintSuperCapitalShip)}
             >

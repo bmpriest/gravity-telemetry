@@ -29,7 +29,29 @@ export const richShipInclude = {
             include: {
               weapon: { include: { targetPriorities: { orderBy: { order: "asc" as const }, include: { shipTypes: { orderBy: { order: "asc" as const } } } } } },
               moduleEffects: { orderBy: { order: "asc" as const } },
-              carriedCraft: { orderBy: { order: "asc" as const } },
+              carriedCraft: {
+                orderBy: { order: "asc" as const },
+                include: {
+                  systems: {
+                    orderBy: { index: "asc" as const },
+                    include: {
+                      slots: {
+                        orderBy: { slotIndex: "asc" as const },
+                        include: {
+                          modules: {
+                            orderBy: { id: "asc" as const },
+                            include: {
+                              weapon: { include: { targetPriorities: { orderBy: { order: "asc" as const }, include: { shipTypes: { orderBy: { order: "asc" as const } } } } } },
+                              moduleEffects: { orderBy: { order: "asc" as const } },
+                              carriedCraft: { orderBy: { order: "asc" as const } },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -40,8 +62,10 @@ export const richShipInclude = {
 
 type DbShipRich = Prisma.ShipGetPayload<{ include: typeof richShipInclude }>;
 type DbSystem = DbShipRich["systems"][number];
-type DbModule = DbSystem["slots"][number]["modules"][number];
+type DbSlot = DbSystem["slots"][number];
+type DbModule = DbSlot["modules"][number];
 type DbWeapon = NonNullable<DbModule["weapon"]>;
+type DbCarriedCraft = DbModule["carriedCraft"][number];
 
 function dpm(o: { dpmAntiShip: number; dpmAntiAir: number; dpmSiege: number; dpmHpRecovery: number; dpmOperationEfficiency: number }): Dpm {
   return {
@@ -57,6 +81,7 @@ function mapWeapon(w: DbWeapon): RichWeapon {
   return {
     intervalSeconds: w.intervalSeconds,
     cdTimeSeconds: w.cdTimeSeconds,
+    lockOnTimeSeconds: w.lockOnTimeSeconds,
     roundsPerCycle: w.roundsPerCycle,
     ammoCount: w.ammoCount,
     operationCount: w.operationCount,
@@ -71,6 +96,7 @@ function mapWeapon(w: DbWeapon): RichWeapon {
     aircraftRangeName: w.aircraftRangeName,
     attackRangeName: w.attackRangeName,
     specialTargetLogicName: w.specialTargetLogicName,
+    earlyWarningEfficiency: w.earlyWarningEfficiency,
     dpm: dpm(w),
     aaCooldownReductionPercent: w.aaCooldownReductionPercent,
     aaDamagePerHitDelta: w.aaDamagePerHitDelta,
@@ -91,10 +117,12 @@ function mapWeapon(w: DbWeapon): RichWeapon {
   };
 }
 
-function mapModule(m: DbModule, quantity: number): RichModule {
+function mapModule(m: DbModule, slot: DbSlot): RichModule {
   return {
     id: m.id,
-    quantity,
+    quantity: slot.quantity,
+    antiAircraftCooperativeEfficiency: slot.antiAircraftCooperativeEfficiency,
+    antiMissileProtectRatio: slot.antimissileprotectRatio,
     name: m.name,
     shortName: m.shortName,
     typeName: m.typeName,
@@ -114,10 +142,13 @@ function mapModule(m: DbModule, quantity: number): RichModule {
     moduleEffects: m.moduleEffects.map((e) => ({
       name: e.name, value: e.value, attrName: e.attrName, attrDesc: e.attrDesc, desc: e.desc, descSimp: e.descSimp,
     })),
-    carriedCraft: m.carriedCraft.map((c) => ({
+    carriedCraft: m.carriedCraft.map((c: DbCarriedCraft) => ({
       name: c.name,
       quantity: c.quantity,
       dpm: { antiShip: c.dpmAntiShip, antiAir: c.dpmAntiAir, siege: c.dpmSiege, hpRecovery: c.dpmHpRecovery, operationEfficiency: c.dpmOperationEfficiency },
+      // Cast: inner systems share the same DB shape as ship-level systems; UAVs
+      // never carry further craft so the one-level recursion stop is safe.
+      systems: c.systems.map((s) => mapSystem(s as unknown as DbSystem)),
     })),
   };
 }
@@ -126,7 +157,7 @@ function mapSystem(s: DbSystem): RichSystem {
   // Flatten slots → modules, carrying each slot's quantity onto its module.
   const modules: RichModule[] = [];
   for (const slot of s.slots) {
-    for (const m of slot.modules) modules.push(mapModule(m, slot.quantity));
+    for (const m of slot.modules) modules.push(mapModule(m, slot));
   }
   return {
     id: s.id,

@@ -37,7 +37,7 @@ export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, f
           <input
             id="fleet-owned-only"
             type="checkbox"
-            className="fo-switch fo-switch-primary fo-switch-outline border-neutral-200 bg-neutral-900 hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
+            className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 hover:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
             checked={showOwnedOnly}
             disabled={!hasBlueprintData}
             style={switchStyle}
@@ -52,7 +52,7 @@ export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, f
         </div>
 
         <select
-          className="fo-input w-full border-neutral-200 bg-white text-xs text-black dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+          className="input w-full border-neutral-200 bg-white text-xs text-black dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
           value={filterType}
           onChange={(e) => onFilterType(e.target.value)}
         >
@@ -70,7 +70,7 @@ export default function FleetSidebar({ ships, showOwnedOnly, hasBlueprintData, f
           />
           <input
             type="text"
-            className="fo-input w-full border-neutral-200 bg-white pl-8 text-xs text-black dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
+            className="input w-full border-neutral-200 bg-white pl-8 text-xs text-black dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
             placeholder="Search ships..."
             value={searchQuery}
             onChange={(e) => onSearch(e.target.value)}

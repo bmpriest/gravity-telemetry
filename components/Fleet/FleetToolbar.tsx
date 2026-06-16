@@ -50,7 +50,7 @@ export default function FleetToolbar({
           <input
             value={fleet.name}
             type="text"
-            className={`fo-input w-full text-left text-lg font-bold transition-colors ${
+            className={`input w-full text-left text-lg font-bold transition-colors ${
               fleet.isAngulum
                 ? "border-red-200 bg-white/80 text-red-900 focus:border-red-400 dark:border-red-800 dark:bg-red-900/40 dark:text-red-100"
                 : "border-neutral-200 bg-white text-black dark:border-neutral-700 dark:bg-neutral-800 dark:text-white"
@@ -80,13 +80,13 @@ export default function FleetToolbar({
             </span>
             <input 
               type="checkbox" 
-              className="fo-checkbox fo-checkbox-sm fo-checkbox-error" 
+              className="checkbox checkbox-sm checkbox-error" 
               checked={fleet.isAngulum}
               onChange={(e) => onToggleAngulum(e.target.checked)}
             />
           </div>
           <button
-            className="fo-btn fo-btn-sm border-green-300 bg-green-200 text-green-800 transition hover:bg-green-300 dark:border-green-700 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
+            className="btn btn-sm border-green-300 bg-green-200 text-green-800 transition hover:bg-green-300 dark:border-green-700 dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800"
             type="button"
             onClick={onSave}
           >
@@ -94,14 +94,14 @@ export default function FleetToolbar({
             Save
           </button>
           <button
-            className="fo-btn fo-btn-sm border-blue-300 bg-blue-200 text-blue-800 transition hover:bg-blue-300 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
+            className="btn btn-sm border-blue-300 bg-blue-200 text-blue-800 transition hover:bg-blue-300 dark:border-blue-700 dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800"
             type="button"
             onClick={onNewFleet}
           >
             New
           </button>
           <button
-            className="fo-btn fo-btn-sm border-neutral-300 bg-neutral-200 text-neutral-700 transition hover:bg-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600"
+            className="btn btn-sm border-neutral-300 bg-neutral-200 text-neutral-700 transition hover:bg-neutral-300 dark:border-neutral-600 dark:bg-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-600"
             type="button"
             onClick={onToggleSaved}
           >
@@ -117,17 +117,17 @@ export default function FleetToolbar({
       </div>
 
       <div className="flex items-center gap-3">
-        <div className={`fo-input-group max-w-[8rem] transition ${
+        <div className={`input-group max-w-[8rem] transition ${
           fleet.isAngulum ? "bg-red-100/50 dark:bg-red-900/30" : "bg-white dark:bg-neutral-800"
         }`}>
-          <label className="fo-input-group-text text-xs" htmlFor="fleet-cp-max">Max CP</label>
+          <label className="input-group-text text-xs" htmlFor="fleet-cp-max">Max CP</label>
           <input
             id="fleet-cp-max"
             value={fleet.maxCommandPoints}
             type="number"
             disabled={fleet.isAngulum}
             min="1"
-            className={`fo-input w-16 border-neutral-200 text-left text-sm transition ${
+            className={`input w-16 border-neutral-200 text-left text-sm transition ${
               fleet.isAngulum 
                 ? "bg-transparent text-red-900 dark:text-red-200 border-transparent cursor-not-allowed" 
                 : "text-black dark:border-neutral-700 dark:text-white"

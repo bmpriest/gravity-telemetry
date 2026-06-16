@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import Tooltip from "@/components/ui/Tooltip";
 import type { Op } from "quill";
 import type { SaveTemplate } from "@/utils/types";
 import MailEditor from "@/components/Mail/MailEditor";
@@ -83,11 +84,11 @@ export default function MailEditPage() {
           Need some inspiration? Try a{" "}
           <span className="cursor-pointer font-medium transition duration-500 hover:underline" onClick={() => setShowMailTemplates(true)}>mail template</span>
         </p>
-        <div className="du-tooltip fo-input-group-text p-0" data-tip="View templates">
-          <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={() => setShowMailTemplates(true)}>
+        <Tooltip content="View templates" className="input-group-text p-0">
+          <button type="button" className="btn btn-circle btn-text" onClick={() => setShowMailTemplates(true)}>
             <img className="size-5 select-none transition duration-500 dark:invert" src="/ui/arrowRight.svg" aria-hidden="true" />
           </button>
-        </div>
+        </Tooltip>
       </div>
 
       {showMailTemplates && (
@@ -97,7 +98,7 @@ export default function MailEditPage() {
       )}
 
       {loading ? (
-        <div className="fo-skeleton fo-skeleton-animated h-96 w-full rounded-2xl shadow transition duration-500 md:w-[25rem] lg:w-[40rem] xl:w-[50rem]" />
+        <div className="skeleton skeleton-animated h-96 w-full rounded-2xl shadow transition duration-500 md:w-[25rem] lg:w-[40rem] xl:w-[50rem]" />
       ) : (
         <MailEditor
           clearText={isClearText}

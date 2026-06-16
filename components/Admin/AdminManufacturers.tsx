@@ -136,14 +136,14 @@ export default function AdminManufacturers() {
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") void createManufacturer(); }}
             placeholder="e.g. Test Foundry"
-            className="fo-input w-full rounded-lg border-neutral-300 bg-white px-3 py-2 text-sm text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+            className="input w-full rounded-lg border-neutral-300 bg-white px-3 py-2 text-sm text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
           />
         </label>
         <button
           type="button"
           onClick={() => void createManufacturer()}
           disabled={adding || !newName.trim()}
-          className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
+          className="btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
         >
           {adding ? "Adding…" : "+ Add"}
         </button>
@@ -183,7 +183,7 @@ export default function AdminManufacturers() {
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         onKeyDown={(e) => { if (e.key === "Enter") void saveEdit(); if (e.key === "Escape") setEditingId(null); }}
-                        className="fo-input w-full rounded-lg border-neutral-300 bg-white px-2 py-1 text-sm text-black dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+                        className="input w-full rounded-lg border-neutral-300 bg-white px-2 py-1 text-sm text-black dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
                       />
                     ) : (
                       <span className="font-medium">{m.name}</span>
@@ -197,14 +197,14 @@ export default function AdminManufacturers() {
                             type="button"
                             disabled={savingId === m.id}
                             onClick={() => void saveEdit()}
-                            className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-3 py-1 text-xs disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
+                            className="btn rounded-lg border-blue-300 bg-blue-100 px-3 py-1 text-xs disabled:opacity-50 dark:border-blue-500 dark:bg-blue-800"
                           >
                             {savingId === m.id ? "Saving…" : "Save"}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEditingId(null)}
-                            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-800"
+                            className="btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs dark:border-neutral-600 dark:bg-neutral-800"
                           >
                             Cancel
                           </button>
@@ -214,7 +214,7 @@ export default function AdminManufacturers() {
                           <button
                             type="button"
                             onClick={() => beginEdit(m)}
-                            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                            className="btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-xs hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
                           >
                             Rename
                           </button>
@@ -222,7 +222,7 @@ export default function AdminManufacturers() {
                             type="button"
                             disabled={deletingId === m.id}
                             onClick={() => void deleteManufacturer(m)}
-                            className="fo-btn rounded-lg border-red-300 bg-red-100 px-3 py-1 text-xs disabled:opacity-50 hover:bg-red-200 dark:border-red-600 dark:bg-red-900 dark:hover:bg-red-800"
+                            className="btn rounded-lg border-red-300 bg-red-100 px-3 py-1 text-xs disabled:opacity-50 hover:bg-red-200 dark:border-red-600 dark:bg-red-900 dark:hover:bg-red-800"
                           >
                             {deletingId === m.id ? "Deleting…" : "Delete"}
                           </button>

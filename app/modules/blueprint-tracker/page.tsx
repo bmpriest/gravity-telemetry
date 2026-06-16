@@ -315,7 +315,7 @@ export default function BlueprintTrackerPage() {
       ) : (
         <div className="mt-4 flex w-full flex-wrap items-stretch justify-center gap-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="fo-skeleton fo-skeleton-animated h-56 w-full grow rounded-2xl bg-neutral-100 p-6 transition duration-500 dark:bg-neutral-900" />
+            <div key={i} className="skeleton skeleton-animated h-56 w-full grow rounded-2xl bg-neutral-100 p-6 transition duration-500 dark:bg-neutral-900" />
           ))}
         </div>
       )}

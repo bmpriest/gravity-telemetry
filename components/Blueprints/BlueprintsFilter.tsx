@@ -82,10 +82,10 @@ export default function BlueprintsFilter({ close, onFilter }: Props) {
       {showFilters && (
         <div className="absolute top-10 z-[2] flex w-52 flex-col items-start justify-center gap-1 rounded-xl border-2 border-neutral-200 bg-white p-3 shadow-md transition duration-500 dark:border-neutral-700 dark:bg-neutral-800">
           {Object.keys(filters).map((key) => (
-            <button key={key} className="du-label flex w-full cursor-pointer items-center justify-start gap-2" type="button" onClick={() => selectFilter(key)}>
+            <button key={key} className="label flex w-full cursor-pointer items-center justify-start gap-2" type="button" onClick={() => selectFilter(key)}>
               <input
                 type="checkbox"
-                className="du-checkbox pointer-events-none"
+                className="checkbox pointer-events-none"
                 style={{ backgroundSize: "cover", backgroundColor: currentFilters.includes(key) ? "inherit" : "" }}
                 checked={currentFilters.includes(key)}
                 readOnly

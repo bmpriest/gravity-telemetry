@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Tooltip from "@/components/ui/Tooltip";
 import Carousel from "@/components/Home/Carousel";
 import ChangelogItem from "@/components/Home/ChangelogItem";
 import ContributorsItem from "@/components/Home/ContributorsItem";
@@ -34,7 +35,7 @@ export default function HomePage() {
         <h2 id="whats-new" className="text-3xl font-bold">
           <Link href="/home#whats-new" className="transition duration-500">What&apos;s New?</Link>
         </h2>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
+        <div className="divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
           <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/hourglass.svg" aria-hidden="true" /></span>
         </div>
         <div className="min-w-[20rem] rounded-2xl bg-neutral-100/50 p-4 transition duration-500 dark:bg-neutral-900">
@@ -46,11 +47,11 @@ export default function HomePage() {
         </div>
         <button type="button" className="flex w-full items-center justify-end gap-2" onClick={() => router.push(`?v=${changelog[changelog.length - 1].version}`)}>
           <p className="transition duration-500 hover:underline">View full changelog</p>
-          <div className="du-tooltip" data-tip="View">
-            <div className="fo-btn fo-btn-circle fo-btn-text">
+          <Tooltip content="View">
+            <div className="btn btn-circle btn-text">
               <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/arrowRight.svg" aria-hidden="true" />
             </div>
-          </div>
+          </Tooltip>
         </button>
       </div>
 
@@ -58,20 +59,20 @@ export default function HomePage() {
         <h2 id="top-contributors" className="text-3xl font-bold">
           <Link href="/home#top-contributors" className="transition duration-500">Top Contributors</Link>
         </h2>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
+        <div className="divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
           <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/trophy.svg" aria-hidden="true" /></span>
         </div>
-        <div className="flex w-[80vw] flex-col gap-2 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
+        <div className="accordion flex w-[80vw] flex-col gap-2 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
           {credits.slice(0, 5).map((contributor, index) => (
             <ContributorsItem key={contributor.name} contributor={contributor} index={index} />
           ))}
           <button type="button" className="flex w-full items-center justify-end gap-2" onClick={() => router.push("?ct=true")}>
             <p className="transition duration-500 hover:underline">View all contributors</p>
-            <div className="du-tooltip" data-tip="View">
-              <div className="fo-btn fo-btn-circle fo-btn-text">
+            <Tooltip content="View">
+              <div className="btn btn-circle btn-text">
                 <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/arrowRight.svg" aria-hidden="true" />
               </div>
-            </div>
+            </Tooltip>
           </button>
         </div>
       </div>
@@ -80,7 +81,7 @@ export default function HomePage() {
         <h2 id="your-account" className="text-3xl font-bold">
           <Link href="/home#your-account" className="transition duration-500">Your Account</Link>
         </h2>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
+        <div className="divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
           <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/person.svg" aria-hidden="true" /></span>
         </div>
         <div className="flex w-[80vw] flex-col gap-3 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">
@@ -99,14 +100,14 @@ export default function HomePage() {
                 <button
                   type="button"
                   onClick={() => router.push("/login")}
-                  className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 font-medium hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+                  className="btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 font-medium hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
                 >
                   Log in
                 </button>
                 <button
                   type="button"
                   onClick={() => router.push("/register")}
-                  className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                  className="btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
                 >
                   Register
                 </button>
@@ -120,7 +121,7 @@ export default function HomePage() {
         <h2 id="contact-me" className="text-3xl font-bold">
           <Link href="/home#contact-me" className="transition duration-500">Contact Me</Link>
         </h2>
-        <div className="fo-divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
+        <div className="divider my-2 before:transition before:duration-500 after:transition after:duration-500 dark:before:border-neutral-600 dark:after:border-neutral-600">
           <span className="flex items-center justify-center"><img className="size-12 select-none transition duration-500 dark:invert" src="/ui/contact.svg" aria-hidden="true" /></span>
         </div>
         <div className="flex w-[80vw] flex-col gap-2 md:w-[25rem] lg:w-[35rem] xl:w-[40rem]">

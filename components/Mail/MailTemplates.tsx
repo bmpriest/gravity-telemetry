@@ -29,7 +29,7 @@ export default function MailTemplates({ onTemplate }: Props) {
         <p>Selected: <span className="text-lg font-medium">{templateNames[selectedIndex]}</span></p>
         <button
           type="button"
-          className="du-btn flex items-center justify-center gap-2 rounded-xl border-green-300 bg-green-100 transition duration-500 hover:scale-105 hover:border-green-400 hover:bg-green-200 dark:border-green-500 dark:bg-green-800 dark:hover:bg-green-700"
+          className="btn flex items-center justify-center gap-2 rounded-xl border-green-300 bg-green-100 transition duration-500 hover:scale-105 hover:border-green-400 hover:bg-green-200 dark:border-green-500 dark:bg-green-800 dark:hover:bg-green-700"
           onClick={() => onTemplate(templates[selectedIndex])}
         >
           <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">Use this template</span>

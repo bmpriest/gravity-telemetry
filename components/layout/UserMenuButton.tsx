@@ -30,8 +30,6 @@ export default function UserMenuButton() {
   const router = useRouter();
   const user = useUserStore((s) => s.user);
   const authChecked = useUserStore((s) => s.authChecked);
-  const isDarkMode = useUserStore((s) => s.isDarkMode);
-  const setIsDarkMode = useUserStore((s) => s.setIsDarkMode);
   const logout = useUserStore((s) => s.logout);
 
   const [open, setOpen] = useState(false);
@@ -48,14 +46,6 @@ export default function UserMenuButton() {
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
-
-  function toggleDark() {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    // <html> is the source of truth for tailwind's selector mode.
-    document.documentElement.classList.toggle("dark", next);
-    try { localStorage.setItem("theme", next ? "dark" : "light"); } catch { /* ignore */ }
-  }
 
   async function onLogout() {
     setOpen(false);
@@ -77,7 +67,7 @@ export default function UserMenuButton() {
     return (
       <Link
         href="/login"
-        className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm font-medium hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+        className="btn btn-primary rounded-lg px-4 py-2 text-sm"
       >
         Sign in
       </Link>
@@ -89,7 +79,7 @@ export default function UserMenuButton() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fo-btn flex items-center gap-2 rounded-lg border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+        className="btn flex items-center gap-2 rounded-lg border-neutral-300 bg-neutral-100 px-3 py-2 text-sm font-medium hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -114,29 +104,11 @@ export default function UserMenuButton() {
               href="/admin"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="block px-4 py-2 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700"
+              className="block px-4 py-2 text-sm text-left hover:bg-neutral-100 dark:hover:bg-neutral-700"
             >
               Admin panel
             </Link>
-          )}
-
-          <button
-            type="button"
-            role="menuitemcheckbox"
-            aria-checked={isDarkMode}
-            onClick={toggleDark}
-            className="flex w-full items-center justify-between px-4 py-2 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-700"
-          >
-            <span>Dark mode</span>
-            <span
-              className={`relative inline-block h-5 w-9 rounded-full transition ${isDarkMode ? "bg-blue-500" : "bg-neutral-300 dark:bg-neutral-600"}`}
-              aria-hidden="true"
-            >
-              <span
-                className={`absolute top-0.5 inline-block h-4 w-4 transform rounded-full bg-white transition ${isDarkMode ? "-translate-x-4" : "translate-x-0"}`}
-              />
-            </span>
-          </button>
+          )}          
 
           <div className="border-t border-neutral-200 dark:border-neutral-700" />
 

@@ -169,7 +169,7 @@ export default function BlueprintsToolbar({
 
         <button
           type="button"
-          className={`du-btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 ${!hasUnsavedChanges ? "pointer-events-none opacity-50 brightness-50" : ""}`}
+          className={`btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 ${!hasUnsavedChanges ? "pointer-events-none opacity-50 brightness-50" : ""}`}
           onClick={onClickSave}
         >
           <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">
@@ -178,7 +178,7 @@ export default function BlueprintsToolbar({
           {!loading ? (
             <img className="size-5 transition duration-500 dark:invert" src="/ui/save.svg" aria-hidden="true" />
           ) : (
-            <span className="fo-loading fo-loading-spinner fo-loading-sm" />
+            <span className="loading loading-spinner loading-sm" />
           )}
         </button>
 
@@ -207,7 +207,7 @@ export default function BlueprintsToolbar({
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               type="text"
-              className="search-input fo-input grow rounded-full text-left text-black transition duration-500 placeholder:transition placeholder:duration-500 dark:text-white dark:placeholder:text-neutral-300"
+              className="search-input input grow rounded-full text-left text-black transition duration-500 placeholder:transition placeholder:duration-500 dark:text-white dark:placeholder:text-neutral-300"
               placeholder="Enter new account name"
               required
               minLength={1}
@@ -215,7 +215,7 @@ export default function BlueprintsToolbar({
             />
             <button
               type="submit"
-              className={`du-btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 ${newName.length < 1 || newName.length > 50 ? "pointer-events-none opacity-50 brightness-50" : ""}`}
+              className={`btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700 ${newName.length < 1 || newName.length > 50 ? "pointer-events-none opacity-50 brightness-50" : ""}`}
             >
               <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">
                 {renameSuccess ? "Saved!" : renameLoading ? "Saving" : "Save"}
@@ -223,7 +223,7 @@ export default function BlueprintsToolbar({
               {!renameLoading ? (
                 <img className="size-5 transition duration-500 dark:invert" src="/ui/save.svg" aria-hidden="true" />
               ) : (
-                <span className="fo-loading fo-loading-spinner fo-loading-sm" />
+                <span className="loading loading-spinner loading-sm" />
               )}
             </button>
           </form>
@@ -243,7 +243,7 @@ export default function BlueprintsToolbar({
             </h3>
             <button
               type="submit"
-              className="du-btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
+              className="btn flex h-9 min-h-9 items-center justify-center gap-2 rounded-full border-blue-300 bg-blue-100 py-2 transition duration-500 hover:scale-105 hover:border-blue-400 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700"
             >
               <span className="hidden transition duration-500 sm:inline-flex md:hidden lg:inline-flex">
                 {deleteSuccess ? "Deleted!" : deleteLoading ? "Deleting" : "Delete"}
@@ -251,7 +251,7 @@ export default function BlueprintsToolbar({
               {!deleteLoading ? (
                 <img className="size-5 transition duration-500 dark:invert" src="/ui/trash.svg" aria-hidden="true" />
               ) : (
-                <span className="fo-loading fo-loading-spinner fo-loading-sm" />
+                <span className="loading loading-spinner loading-sm" />
               )}
             </button>
           </form>

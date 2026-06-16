@@ -110,7 +110,7 @@ export default function AdminUsers({ currentUserId }: Props) {
           value={search}
           onChange={(e) => { setPage(1); setSearch(e.target.value); }}
           placeholder="Search by username..."
-          className="fo-input w-full max-w-xs rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
+          className="input w-full max-w-xs rounded-lg border-neutral-300 bg-white px-3 py-2 text-black transition duration-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white"
         />
         <p className="text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">
           {loading ? "Loading…" : `${total} user${total === 1 ? "" : "s"} total`}
@@ -166,7 +166,7 @@ export default function AdminUsers({ currentUserId }: Props) {
                 <td className="p-3 text-right">
                   <button
                     type="button"
-                    className="fo-btn rounded-lg border-amber-300 bg-amber-100 px-3 py-1 text-xs font-medium hover:border-amber-400 hover:bg-amber-200 dark:border-amber-600 dark:bg-amber-900 dark:hover:bg-amber-800"
+                    className="btn rounded-lg border-amber-300 bg-amber-100 px-3 py-1 text-xs font-medium hover:border-amber-400 hover:bg-amber-200 dark:border-amber-600 dark:bg-amber-900 dark:hover:bg-amber-800"
                     onClick={() => openReset(u)}
                   >
                     Reset password
@@ -191,7 +191,7 @@ export default function AdminUsers({ currentUserId }: Props) {
             type="button"
             disabled={page <= 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800"
+            className="btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800"
           >
             Prev
           </button>
@@ -200,7 +200,7 @@ export default function AdminUsers({ currentUserId }: Props) {
             type="button"
             disabled={page >= totalPages}
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800"
+            className="btn rounded-lg border-neutral-300 bg-neutral-100 px-3 py-1 text-sm disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-800"
           >
             Next
           </button>
@@ -230,14 +230,14 @@ export default function AdminUsers({ currentUserId }: Props) {
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
+                    className="btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
                     onClick={() => void navigator.clipboard.writeText(resetResult)}
                   >
                     Copy
                   </button>
                   <button
                     type="button"
-                    className="fo-btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm dark:border-blue-500 dark:bg-blue-800"
+                    className="btn rounded-lg border-blue-300 bg-blue-100 px-4 py-2 text-sm dark:border-blue-500 dark:bg-blue-800"
                     onClick={closeReset}
                   >
                     Done
@@ -265,14 +265,14 @@ export default function AdminUsers({ currentUserId }: Props) {
                     value={resetCustomPassword}
                     onChange={(e) => setResetCustomPassword(e.target.value)}
                     placeholder="At least 8 characters"
-                    className="fo-input rounded-lg border-neutral-300 bg-white px-3 py-2 text-sm text-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
+                    className="input rounded-lg border-neutral-300 bg-white px-3 py-2 text-sm text-black dark:border-neutral-600 dark:bg-neutral-900 dark:text-white"
                   />
                 )}
                 {resetError && <p className="text-sm text-red-600 dark:text-red-400">{resetError}</p>}
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    className="fo-btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
+                    className="btn rounded-lg border-neutral-300 bg-neutral-100 px-4 py-2 text-sm dark:border-neutral-600 dark:bg-neutral-700"
                     onClick={closeReset}
                   >
                     Cancel
@@ -280,7 +280,7 @@ export default function AdminUsers({ currentUserId }: Props) {
                   <button
                     type="button"
                     disabled={resetLoading}
-                    className="fo-btn rounded-lg border-amber-300 bg-amber-100 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-amber-600 dark:bg-amber-900"
+                    className="btn rounded-lg border-amber-300 bg-amber-100 px-4 py-2 text-sm font-medium disabled:opacity-50 dark:border-amber-600 dark:bg-amber-900"
                     onClick={submitReset}
                   >
                     {resetLoading ? "Resetting…" : "Reset password"}

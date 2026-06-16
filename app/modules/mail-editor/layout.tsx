@@ -14,13 +14,13 @@ export default function MailEditorLayout({ children }: { children: React.ReactNo
   return (
     <div className="flex h-full min-h-[calc(100dvh-8rem)] w-full flex-col items-center justify-start p-8">
       <div className="flex w-full flex-col items-center justify-center md:w-[25rem] lg:w-[30rem]">
-        <div role="tablist" className="du-tabs du-tabs-bordered w-full">
+        <div role="tablist" className="tabs tabs-bordered w-full">
           {tabs.map((tab) => (
             <Link
               key={tab.route}
               href={tab.route}
               role="tab"
-              className={`du-tab flex items-center justify-center gap-2 transition duration-500 dark:text-white ${pathname === tab.route ? "du-tab-active" : ""}`}
+              className={`tab flex items-center justify-center gap-2 transition duration-500 dark:text-white ${pathname === tab.route ? "tab-active" : ""}`}
             >
               <img className="size-5 select-none transition duration-500 dark:invert" src={tab.src} aria-hidden="true" />
               {tab.name}

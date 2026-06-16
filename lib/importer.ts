@@ -392,7 +392,8 @@ function buildSlot(sl: Json, tracker?: FieldTracker) {
   };
 }
 
-function buildSystem(sy: Json, tracker?: FieldTracker) {
+// Flat scalars only — no nested slots. Used by both create and upsert paths.
+function buildSystemScalars(sy: Json, tracker?: FieldTracker) {
   tracker?.check("system", sy, SYSTEM_KEYS);
   tracker?.check("system.damage_per_minute", sy.damage_per_minute, DPM_KEYS);
   return {
@@ -413,6 +414,12 @@ function buildSystem(sy: Json, tracker?: FieldTracker) {
     pointRequiredForUnlockGroup: numOrNull(sy.point_required_for_unlock_group),
     unlockRequired: typeof sy.unlock_required === "boolean" ? sy.unlock_required : null,
     ...intDpm(sy.damage_per_minute),
+  };
+}
+
+function buildSystem(sy: Json, tracker?: FieldTracker) {
+  return {
+    ...buildSystemScalars(sy, tracker),
     slots: { create: (sy.slots ?? []).map((sl: Json) => buildSlot(sl, tracker)) },
   };
 }
@@ -463,8 +470,9 @@ export async function importShips(prisma: PrismaClient, shipsJson: Json, opts: I
 
     const name = String(s.name ?? s.short_name ?? `Ship ${s.ship_id}`);
 
-    const childCreate = {
-      systems: { create: systems.map((sy: Json) => buildSystem(sy, tracker)) },
+    // Non-system child data — wiped and rebuilt every import.
+    // These have no external references that need preserving across re-imports.
+    const nonSystemChildData = {
       hangarStats: {
         create: (s.hangar_stats ?? []).map((h: Json) => {
           tracker.check("ship.hangar_stat", h, HANGAR_STAT_KEYS);
@@ -514,6 +522,8 @@ export async function importShips(prisma: PrismaClient, shipsJson: Json, opts: I
       },
     };
 
+    // `visible` is admin-managed after first creation — omit it from scalars so
+    // re-imports never overwrite a manual toggle.
     const scalars = {
       name,
       shortName: String(s.short_name ?? ""),
@@ -554,21 +564,66 @@ export async function importShips(prisma: PrismaClient, shipsJson: Json, opts: I
       bpType: num(s.bp_type),
       isRe: num(s.is_re),
       features: Array.isArray(s.features) ? s.features.map((f: Json) => String(f)) : [],
-      visible: isCombatType(String(s.type ?? "")),
     };
 
     const gameId = num(s.ship_id);
     const existing = gameId ? await prisma.ship.findUnique({ where: { gameId }, select: { id: true } }) : null;
 
     if (existing) {
-      // Wipe the rebuilt subtree (systems cascade to slots/modules/weapons/etc.)
-      await prisma.system.deleteMany({ where: { shipId: existing.id } });
+      // Update game-data scalars and non-system child data.
       await prisma.shipHangarStat.deleteMany({ where: { shipId: existing.id } });
       await prisma.shipAffix.deleteMany({ where: { shipId: existing.id } });
       await prisma.shipFragment.deleteMany({ where: { shipId: existing.id } });
-      await prisma.ship.update({ where: { id: existing.id }, data: { ...scalars, ...childCreate } });
+      await prisma.ship.update({ where: { id: existing.id }, data: { ...scalars, ...nonSystemChildData } });
+
+      // Upsert systems: coded systems (M1, A1, B2, …) are matched by their code so
+      // their System.id is preserved, keeping SystemBlueprint references intact across
+      // re-imports. Uncoded base systems (Armor, Power, …) are matched by index.
+      const existingSystems = await prisma.system.findMany({
+        where: { shipId: existing.id },
+        select: { id: true, code: true, index: true },
+      });
+      const byCode = new Map(existingSystems.filter((es) => es.code).map((es) => [es.code!, es.id]));
+      const byIndex = new Map(existingSystems.map((es) => [es.index, es.id]));
+      const handledIds = new Set<number>();
+
+      for (const sy of systems) {
+        const code = strOrNull(sy.code);
+        const existingId = code ? byCode.get(code) : byIndex.get(num(sy.index));
+        if (existingId != null) {
+          // Preserve the System row; wipe and rebuild its slots subtree — stats change freely.
+          await prisma.system.update({
+            where: { id: existingId },
+            data: {
+              ...buildSystemScalars(sy, tracker),
+              slots: { deleteMany: {}, create: (sy.slots ?? []).map((sl: Json) => buildSlot(sl, tracker)) },
+            },
+          });
+          handledIds.add(existingId);
+        } else {
+          // New system added by a game update — create it fresh.
+          const created = await prisma.system.create({
+            data: { shipId: existing.id, ...buildSystemScalars(sy, tracker), slots: { create: (sy.slots ?? []).map((sl: Json) => buildSlot(sl, tracker)) } },
+          });
+          handledIds.add(created.id);
+        }
+      }
+
+      // Remove systems that were dropped from the game data (cascades to SystemBlueprint).
+      const staleIds = existingSystems.map((es) => es.id).filter((id) => !handledIds.has(id));
+      if (staleIds.length > 0) {
+        await prisma.system.deleteMany({ where: { id: { in: staleIds } } });
+      }
     } else {
-      await prisma.ship.create({ data: { gameId: gameId || null, ...scalars, ...childCreate } });
+      await prisma.ship.create({
+        data: {
+          gameId: gameId || null,
+          ...scalars,
+          visible: isCombatType(String(s.type ?? "")),
+          systems: { create: systems.map((sy: Json) => buildSystem(sy, tracker)) },
+          ...nonSystemChildData,
+        },
+      });
     }
   }
 

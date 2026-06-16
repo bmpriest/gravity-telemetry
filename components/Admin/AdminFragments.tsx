@@ -80,20 +80,20 @@ export default function AdminFragments() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="fo-input fo-input-bordered w-full rounded-xl"
+              className="input w-full rounded-xl"
               placeholder="e.g. Warspite Blueprint Part"
               required
             />
           </div>
           <div className="flex items-end gap-2">
-            <button type="submit" className="du-btn border-blue-300 bg-blue-100 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700">
+            <button type="submit" className="btn border-blue-300 bg-blue-100 hover:bg-blue-200 dark:border-blue-500 dark:bg-blue-800 dark:hover:bg-blue-700">
               {editing ? "Update" : "Add Fragment"}
             </button>
             {editing && (
               <button
                 type="button"
                 onClick={() => { setEditing(null); setName(""); }}
-                className="du-btn border-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
+                className="btn border-neutral-300 bg-neutral-100 hover:bg-neutral-200 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"
               >
                 Cancel
               </button>
@@ -105,7 +105,7 @@ export default function AdminFragments() {
       <div className="flex flex-col gap-2">
         <h3 className="text-lg font-bold">Existing Fragments</h3>
         {loading ? (
-          <div className="fo-loading fo-loading-spinner fo-loading-md self-center" />
+          <div className="loading loading-spinner self-center" />
         ) : (
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {fragments.map((f) => (
@@ -114,13 +114,13 @@ export default function AdminFragments() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => { setEditing(f); setName(f.name); }}
-                    className="du-btn du-btn-sm du-btn-ghost text-blue-500"
+                    className="btn btn-sm btn-text text-blue-500"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(f.id)}
-                    className="du-btn du-btn-sm du-btn-ghost text-red-500"
+                    className="btn btn-sm btn-text text-red-500"
                   >
                     Delete
                   </button>

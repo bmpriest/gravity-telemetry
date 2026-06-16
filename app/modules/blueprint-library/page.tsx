@@ -181,7 +181,7 @@ export default function BlueprintLibraryPage() {
           <div className="min-w-0 grow">
             {!groupsByType ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 12 }, (_, i) => <div key={i} className="fo-skeleton fo-skeleton-animated h-56 rounded-2xl bg-neutral-200/50" />)}
+                {Array.from({ length: 12 }, (_, i) => <div key={i} className="skeleton skeleton-animated h-56 rounded-2xl bg-neutral-200/50" />)}
               </div>
             ) : (
               BLUEPRINT_TYPE_ORDER.filter((t) => !typeFilter || t === typeFilter).map((t) => {

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
 import AppFooter from "./AppFooter";
+import FlyonUIInit from "./FlyonUIInit";
 import HomeContributors from "@/components/Home/Contributors";
 import HomeChangelog from "@/components/Home/Changelog";
 import HomeContact from "@/components/Home/Contact";
@@ -128,6 +129,10 @@ export default function RootLayoutClient({ children }: Props) {
 
   return (
     <>
+      {/* Initializes FlyonUI's JS components (tooltips, accordion) and keeps them
+          re-initialized across client-side navigation and dynamic renders. */}
+      <FlyonUIInit />
+
       <AppHeader onToggleSidebar={() => setShowSidebar((v) => !v)} />
 
       <div className="flex h-full min-h-[calc(100dvh-4rem)] w-full items-start justify-between">

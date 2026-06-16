@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import Tooltip from "@/components/ui/Tooltip";
 
 export default function LibraryShowcaseUnknownHero() {
   const router = useRouter();
@@ -16,11 +17,11 @@ export default function LibraryShowcaseUnknownHero() {
     <div className="flex flex-col items-center justify-center gap-2">
       <p className="transition duration-500">Have this module unlocked? Contact me!</p>
 
-      <div className="du-tooltip mt-4" data-tip="Contact">
-        <button type="button" className="fo-btn fo-btn-circle fo-btn-text" onClick={handleContact}>
+      <Tooltip content="Contact" className="mt-4">
+        <button type="button" className="btn btn-circle btn-text" onClick={handleContact}>
           <img className="size-6 transition duration-500 dark:invert" src="/ui/contact.svg" alt="Contact me" />
         </button>
-      </div>
+      </Tooltip>
     </div>
   );
 }

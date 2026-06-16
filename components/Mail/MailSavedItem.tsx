@@ -25,10 +25,10 @@ export default function MailSavedItem({ mail, readOnly, onDelete }: Props) {
         <p className="transition duration-500">Last modified {formatDate(mail.lastSaved, "numeric", true)}</p>
         {!readOnly && (
           <div className="mt-3 flex items-center justify-center gap-2">
-            <Link href={link} className="fo-btn grow-[3] select-none border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300">
+            <Link href={link} className="btn grow-[3] select-none border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300">
               Edit <img className="size-5" src="/ui/pencil.svg" aria-hidden="true" />
             </Link>
-            <button disabled={!user} className="fo-btn select-none border-red-400 bg-red-400 px-3 hover:border-red-300 hover:bg-red-300 dark:hover:border-red-500 dark:hover:bg-red-500" type="button" onClick={() => onDelete?.(mail)}>
+            <button disabled={!user} className="btn select-none border-red-400 bg-red-400 px-3 hover:border-red-300 hover:bg-red-300 dark:hover:border-red-500 dark:hover:bg-red-500" type="button" onClick={() => onDelete?.(mail)}>
               <img className="size-5" src="/ui/trash.svg" aria-hidden="true" />
             </button>
           </div>

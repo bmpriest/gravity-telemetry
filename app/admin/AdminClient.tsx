@@ -21,7 +21,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`fo-btn rounded-full border px-5 py-2 text-sm font-medium transition duration-500 ${
+      className={`btn rounded-full border px-5 py-2 text-sm font-medium transition duration-500 ${
         active
           ? "border-blue-400 bg-blue-100 dark:border-blue-500 dark:bg-blue-800"
           : "border-neutral-300 bg-neutral-50 hover:bg-neutral-100 dark:border-neutral-600 dark:bg-neutral-800 dark:hover:bg-neutral-700"

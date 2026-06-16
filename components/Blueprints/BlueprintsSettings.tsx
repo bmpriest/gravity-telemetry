@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { BlueprintAllShip } from "@/utils/blueprints";
+import Tooltip from "@/components/ui/Tooltip";
 import type { BlueprintAccountDTO } from "@/stores/blueprintStore";
 
 interface Props {
@@ -103,7 +104,7 @@ export default function BlueprintsSettings({
             <input
               id="layoutType"
               type="checkbox"
-              className="fo-switch fo-switch-primary fo-switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
+              className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
               checked={listOn}
               style={switchStyle}
               onChange={() => { setListOn((v) => !v); onList(); }}
@@ -116,7 +117,7 @@ export default function BlueprintsSettings({
             <input
               id="variantsType"
               type="checkbox"
-              className="fo-switch fo-switch-primary fo-switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
+              className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
               checked={variantsOff}
               style={switchStyle}
               onChange={() => { setVariantsOff((v) => !v); onVariants(); }}
@@ -129,7 +130,7 @@ export default function BlueprintsSettings({
             <input
               id="modulesType"
               type="checkbox"
-              className="fo-switch fo-switch-primary fo-switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
+              className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
               checked={modulesExposed}
               style={switchStyle}
               onChange={() => { setModulesExposed((v) => !v); onExposeModules(); }}
@@ -145,8 +146,7 @@ export default function BlueprintsSettings({
               {accounts.map((account) => (
                 <li
                   key={account.accountIndex}
-                  className={`w-full ${hasUnsavedChanges && account.accountIndex !== accountIndex ? "du-tooltip" : ""}`}
-                  data-tip="Save your current account first!"
+                  className={`w-full ${hasUnsavedChanges && account.accountIndex !== accountIndex ? "tooltip" : ""}`}
                 >
                   <button
                     className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg py-1 transition duration-500 hover:duration-300 ${
@@ -159,31 +159,36 @@ export default function BlueprintsSettings({
                   >
                     <h5 className="inline-flex items-center justify-center font-medium transition duration-500">
                       {account.accountName}
-                      <span className="du-tooltip ms-2" data-tip="Edit Name">
+                      <Tooltip content="Edit Name" className="ms-2">
                         <button
-                          className="fo-btn fo-btn-circle fo-btn-text size-6 min-h-6"
+                          className="btn btn-circle btn-text size-6 min-h-6"
                           type="button"
                           onClick={(e) => { e.stopPropagation(); onEditName(account.accountIndex); }}
                         >
                           <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/pencil.svg" alt="Edit account name" />
                         </button>
-                      </span>
+                      </Tooltip>
                       {accounts.length > 1 && (
-                        <span className="du-tooltip" data-tip="Delete">
+                        <Tooltip content="Delete">
                           <button
-                            className="fo-btn fo-btn-circle fo-btn-text size-6 min-h-6"
+                            className="btn btn-circle btn-text size-6 min-h-6"
                             type="button"
                             onClick={(e) => { e.stopPropagation(); onDelete(account.accountIndex); }}
                           >
                             <img className="size-4 select-none transition duration-500 dark:invert" src="/ui/trash.svg" alt="Delete account" />
                           </button>
-                        </span>
+                        </Tooltip>
                       )}
                     </h5>
                     <p className="text-sm transition duration-500">
                       {totalTpForAccount(account).toLocaleString()} Tech Points
                     </p>
                   </button>
+                  {hasUnsavedChanges && account.accountIndex !== accountIndex && (
+                    <span className="tooltip-content tooltip-shown:opacity-100 tooltip-shown:visible" role="tooltip">
+                      <span className="tooltip-body">Save your current account first!</span>
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>

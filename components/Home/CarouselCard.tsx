@@ -16,7 +16,7 @@ export default function CarouselCard({ showcase, className }: { showcase: Showca
         <span className={`me-2 rounded px-2.5 py-0.5 text-left text-sm font-semibold text-black ${showcase.tag.color}`}>{showcase.tag.name}</span>
       )}
       <p className="mt-2 text-left text-black">{showcase.description}</p>
-      <Link href={showcase.route} className="fo-btn absolute bottom-4 w-52 border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300">
+      <Link href={showcase.route} className="btn absolute bottom-4 w-52 border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300">
         Go <img className="size-5 select-none" src="/ui/arrowRight.svg" aria-hidden="true" />
       </Link>
     </div>

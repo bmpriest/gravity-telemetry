@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { DataSet, RegExpMatcher, englishDataset, englishRecommendedTransformers, pattern } from "obscenity";
 import type { Delta, Op } from "quill";
+import Tooltip from "@/components/ui/Tooltip";
 import MailQuill, { type MailQuillHandle } from "./MailQuill";
 import { formattingColors } from "@/utils/mailTemplates";
 
@@ -159,7 +160,7 @@ export default function MailEditor({ clearText, template, onOutput, onOutputOps 
         <div className="flex items-center justify-between border-b border-neutral-600 px-3 py-2" onClick={() => setOpenColorMenu(false)}>
           <div className="flex flex-wrap items-center divide-neutral-600 sm:divide-x sm:rtl:divide-x-reverse">
             <div className="flex items-center space-x-1 sm:pe-4 rtl:space-x-reverse">
-              <div className="du-tooltip" data-tip="Underline">
+              <Tooltip content="Underline">
                 <button
                   className={`cursor-pointer rounded p-1 text-neutral-400 transition hover:bg-neutral-600 hover:text-white ${underline ? "bg-neutral-600 text-white" : ""}`}
                   type="button"
@@ -167,19 +168,23 @@ export default function MailEditor({ clearText, template, onOutput, onOutputOps 
                 >
                   <img className="size-6 select-none invert" src="/ui/underline.svg" aria-hidden="true" />
                 </button>
-              </div>
-              <div className="du-tooltip relative" data-tip="Text Color">
+              </Tooltip>
+              {/* This wrapper hosts its own color-menu popover (built with the same
+                  tooltip-content/tooltip-body classes), so it can't also be a FlyonUI
+                  `tooltip` without HSTooltip hijacking that menu — use a native title. */}
+              <div className="relative">
                 <button
                   className={`cursor-pointer rounded p-1 text-neutral-400 transition hover:bg-neutral-600 hover:text-white ${openColorMenu ? "bg-neutral-600 text-white" : ""}`}
                   type="button"
+                  title="Text Color"
                   onClick={(e) => { e.stopPropagation(); setOpenColorMenu((o) => !o); }}
                 >
                   <img className="size-6 select-none invert" src="/ui/colorGenerator.svg" aria-hidden="true" />
                 </button>
                 <div className="absolute bottom-0 h-[3px] w-8 rounded-full" style={{ backgroundColor: currentColor }} />
                 {openColorMenu && (
-                  <div className="fo-tooltip-content visible -left-6 top-8 opacity-100" role="popover" onClick={(e) => e.stopPropagation()}>
-                    <div className="fo-tooltip-body flex w-48 flex-col items-center justify-center gap-3 rounded-lg bg-neutral-600 p-4 text-start shadow">
+                  <div className="tooltip-content visible -left-6 top-8 opacity-100" role="popover" onClick={(e) => e.stopPropagation()}>
+                    <div className="tooltip-body flex w-48 flex-col items-center justify-center gap-3 rounded-lg bg-neutral-600 p-4 text-start shadow">
                       <div className="flex w-full flex-wrap items-center justify-center gap-1">
                         {presetColors.map((c) => (
                           <button key={c} type="button" className="size-7 rounded-full border border-neutral-700 shadow-sm transition hover:scale-110 hover:shadow" style={{ backgroundColor: c }} onClick={(e) => { e.stopPropagation(); selectColor(c); }} />
@@ -211,8 +216,8 @@ export default function MailEditor({ clearText, template, onOutput, onOutputOps 
                 </p>
                 <div className="group relative">
                   <img className="size-5 cursor-help select-none invert" src="/ui/question.svg" alt="Profanity filter information" />
-                  <div className="fo-tooltip-content pointer-events-none visible top-5 opacity-0 group-hover:opacity-100 max-lg:-right-4 lg:left-1/2 lg:max-xl:-translate-x-1/2 xl:-left-4" role="popover">
-                    <div className="fo-tooltip-body flex w-64 flex-col items-center justify-center gap-3 rounded-lg bg-neutral-600 p-4 text-start shadow">
+                  <div className="tooltip-content pointer-events-none visible top-5 opacity-0 group-hover:opacity-100 max-lg:-right-4 lg:left-1/2 lg:max-xl:-translate-x-1/2 xl:-left-4" role="popover">
+                    <div className="tooltip-body flex w-64 flex-col items-center justify-center gap-3 rounded-lg bg-neutral-600 p-4 text-start shadow">
                       <p className="text-white">Uses a basic profanity filter that does not reflect Infinite Lagrange&apos;s actual profanity filter.</p>
                       <p className="text-white">Gives a general idea if your mail will be blocked or not.</p>
                       <div className="flex flex-col items-center justify-center">

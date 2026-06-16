@@ -75,7 +75,7 @@ export default function MailSavedPage() {
       ) : (
         <div className="mt-4 flex w-full flex-col items-center justify-center gap-3 md:w-[25rem] lg:w-[40rem] xl:w-[50rem]">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="fo-skeleton fo-skeleton-animated h-56 w-full grow rounded-2xl bg-neutral-100 p-6 transition duration-500 dark:bg-neutral-900" />
+            <div key={i} className="skeleton skeleton-animated h-56 w-full grow rounded-2xl bg-neutral-100 p-6 transition duration-500 dark:bg-neutral-900" />
           ))}
         </div>
       )}
@@ -88,16 +88,16 @@ export default function MailSavedPage() {
             <MailSavedItem mail={deleteTarget} readOnly />
             <div className="mt-3 flex w-full items-center justify-center gap-2">
               <button
-                className="fo-btn grow border-red-400 bg-red-400 hover:border-red-300 hover:bg-red-300 dark:hover:border-red-500 dark:hover:bg-red-500"
+                className="btn grow border-red-400 bg-red-400 hover:border-red-300 hover:bg-red-300 dark:hover:border-red-500 dark:hover:bg-red-500"
                 type="button"
                 onClick={removeMail}
               >
-                {loading && <span className="du-loading du-loading-spinner du-loading-md transition duration-500 group-hover:text-white group-hover:duration-200 dark:group-hover:text-black" />}
+                {loading && <span className="loading loading-spinner transition duration-500 group-hover:text-white group-hover:duration-200 dark:group-hover:text-black" />}
                 <span className="text-black transition duration-500 group-hover:text-white group-hover:duration-200 dark:text-white dark:group-hover:text-black">
                   {loading ? "Deleting..." : deleteSuccess ? "Deleted!" : "Yes"}
                 </span>
               </button>
-              <button className="fo-btn grow border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300" type="button" onClick={() => setDeleteTarget(undefined)}>Cancel</button>
+              <button className="btn grow border-neutral-100 bg-neutral-100 hover:border-neutral-300 hover:bg-neutral-300" type="button" onClick={() => setDeleteTarget(undefined)}>Cancel</button>
             </div>
           </div>
         </div>

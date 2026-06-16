@@ -93,7 +93,7 @@ export default function SystemLibraryPage() {
               </button>
             ))
           ) : (
-            Array.from({ length: 10 }, (_, i) => <div key={i} className="fo-skeleton fo-skeleton-animated h-14 w-full rounded-lg bg-neutral-200/50" />)
+            Array.from({ length: 10 }, (_, i) => <div key={i} className="skeleton skeleton-animated h-14 w-full rounded-lg bg-neutral-200/50" />)
           )}
         </div>
 
@@ -131,7 +131,7 @@ export default function SystemLibraryPage() {
               {sortedSystems.map((sys) => (
                 <SystemListCard key={sys.id} system={sys} shipType={currentShip!.type} onClick={() => selectSystem(sys.id)} />
               ))}
-              {!currentShip && Array.from({ length: 8 }, (_, i) => <div key={i} className="fo-skeleton fo-skeleton-animated h-36 rounded-xl bg-neutral-200/50" />)}
+              {!currentShip && Array.from({ length: 8 }, (_, i) => <div key={i} className="skeleton skeleton-animated h-36 rounded-xl bg-neutral-200/50" />)}
             </div>
           )}
         </div>
