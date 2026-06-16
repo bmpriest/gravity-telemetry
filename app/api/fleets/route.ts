@@ -19,6 +19,7 @@ interface ShipInstanceDto { id: string; shipId: number; variant: string }
 interface FleetDto {
   id: string;
   name: string;
+  accountIndex: number;
   maxCommandPoints: number;
   isAngulum: boolean;
   isActive: boolean;
@@ -96,10 +97,11 @@ function fleetToInstances(fleetId: string, fleet: FleetDto) {
 }
 
 function instancesToFleet(
-  fleetRow: { 
-    id: string; 
-    name: string; 
-    maxCommandPoints: number; 
+  fleetRow: {
+    id: string;
+    name: string;
+    accountIndex: number;
+    maxCommandPoints: number;
     moduleConfig: string | null;
     isAngulum: boolean;
     isActive: boolean;
@@ -133,6 +135,7 @@ function instancesToFleet(
   return {
     id: fleetRow.id,
     name: fleetRow.name,
+    accountIndex: fleetRow.accountIndex,
     maxCommandPoints: fleetRow.maxCommandPoints,
     isAngulum: fleetRow.isAngulum,
     isActive: fleetRow.isActive,
@@ -175,6 +178,7 @@ export async function POST(req: NextRequest) {
     await prisma.$transaction(async (tx) => {
       const fleetData = {
         name: fleet.name,
+        accountIndex: Math.min(Math.max(0, fleet.accountIndex ?? 0), 9),
         maxCommandPoints: fleet.maxCommandPoints,
         isAngulum: fleet.isAngulum ?? false,
         isActive: fleet.isActive ?? false,

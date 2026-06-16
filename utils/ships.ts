@@ -38,6 +38,8 @@ export interface Ship {
   /** Whether or not the ship has other variants. */
   hasVariants: boolean;
   manufacturer: ManufacturerOption;
+  /** Path under /public to the manufacturer's logo, or null for admin-made manufacturers. */
+  manufacturerLogo?: string | null;
   row: "Front" | "Middle" | "Back";
   commandPoints: number;
   serviceLimit: number;

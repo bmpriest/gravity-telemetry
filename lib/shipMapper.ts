@@ -152,6 +152,7 @@ export function mapLegacyShip(ship: DbShipLegacy, siblings: Map<string, string> 
     variantName: ship.variantName,
     hasVariants,
     manufacturer: ship.manufacturer.name,
+    manufacturerLogo: ship.manufacturer.logo,
     row: ship.rowPosition,
     commandPoints: ship.commandPoints,
     serviceLimit: ship.serviceLimit,

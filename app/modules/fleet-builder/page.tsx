@@ -11,6 +11,7 @@ import FleetAircraftSection from "@/components/Fleet/FleetAircraftSection";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
 import { useBlueprintStore } from "@/stores/blueprintStore";
+import { useAccountStore } from "@/stores/accountStore";
 import type { AllShip } from "@/utils/ships";
 import type { FleetShipInstance, FleetRow } from "@/utils/fleet";
 import { getCarriableType, getCarrierCapacity, getFleetValidationErrors } from "@/utils/fleet";
@@ -26,20 +27,27 @@ export default function FleetBuilderPage() {
   const shipData = useUserStore((s) => s.shipData);
   const { init } = useUserStore();
   const blueprintAccounts = useBlueprintStore((s) => s.accounts);
+  const activeIndex = useAccountStore((s) => s.activeIndex);
 
-  // Owned-ships filter is keyed off the first blueprint account
+  // The blueprint account that owns the currently-selected game account.
+  const activeBlueprintAccount = useMemo(
+    () => blueprintAccounts.find((a) => a.accountIndex === activeIndex),
+    [blueprintAccounts, activeIndex],
+  );
+
+  // Owned-ships filter is keyed off the active account's blueprints.
   const ownedShipIds = useMemo<Set<number> | null>(() => {
-    const account = blueprintAccounts[0];
+    const account = activeBlueprintAccount;
     if (!account) return null;
     const set = new Set<number>();
     for (const entry of account.ships) {
       if (entry.unlocked) set.add(entry.shipId);
     }
     return set.size > 0 ? set : null;
-  }, [blueprintAccounts]);
+  }, [activeBlueprintAccount]);
 
   const ownedModuleIds = useMemo<Set<number> | null>(() => {
-    const account = blueprintAccounts[0];
+    const account = activeBlueprintAccount;
     if (!account) return null;
     const set = new Set<number>();
     for (const shipEntry of account.ships) {
@@ -48,7 +56,7 @@ export default function FleetBuilderPage() {
       }
     }
     return set.size > 0 ? set : null;
-  }, [blueprintAccounts]);
+  }, [activeBlueprintAccount]);
 
   const fleet = useFleetStore((s) => s.fleet);
   const savedFleets = useFleetStore((s) => s.savedFleets);
@@ -84,6 +92,16 @@ export default function FleetBuilderPage() {
     if (!shipData) init();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Switching the active account starts a fresh fleet for it. Skip the very
+  // first run so a fleet restored from localStorage on load isn't discarded.
+  const prevActiveRef = useRef(activeIndex);
+  useEffect(() => {
+    if (prevActiveRef.current !== activeIndex) {
+      prevActiveRef.current = activeIndex;
+      newFleet();
+    }
+  }, [activeIndex, newFleet]);
+
   function showNotice(msg: string) {
     setNotice(msg);
     clearTimeout(noticeTimeoutRef.current);
@@ -93,6 +111,12 @@ export default function FleetBuilderPage() {
   const allShips = useMemo<AllShip[]>(() => shipData ?? [], [shipData]);
   const hasBlueprintData = ownedShipIds !== null;
   const currentCP = getCurrentCP(allShips);
+
+  // Saved fleets belonging to the active account — everything below scopes to these.
+  const accountSavedFleets = useMemo(
+    () => savedFleets.filter((f) => f.accountIndex === activeIndex),
+    [savedFleets, activeIndex],
+  );
 
   const hasOwnedAuxiliary = useMemo(() => {
     if (!ownedShipIds) return false;
@@ -143,22 +167,22 @@ export default function FleetBuilderPage() {
   }, [carrierModalInstances, fleet.carrierLoads]);
 
   const validationErrors = useMemo(() => {
-    return getFleetValidationErrors(fleet.id, [fleet, ...savedFleets.filter(f => f.id !== fleet.id)], allShips);
-  }, [fleet, savedFleets, allShips]);
+    return getFleetValidationErrors(fleet.id, [fleet, ...accountSavedFleets.filter(f => f.id !== fleet.id)], allShips);
+  }, [fleet, accountSavedFleets, allShips]);
 
   const restrictedShipIds = useMemo(() => {
     const set = new Set<number>();
-    
+
     if (fleet.isAngulum) {
       // If current is Angulum, ships in ANY Active fleet are restricted
-      const activeFleets = savedFleets.filter(f => f.isActive && f.id !== fleet.id);
+      const activeFleets = accountSavedFleets.filter(f => f.isActive && f.id !== fleet.id);
       activeFleets.forEach(f => {
         const instances = [...f.rows.front, ...f.rows.middle, ...f.rows.back, ...f.rows.reinforcements, ...Object.values(f.carrierLoads).flat()];
         instances.forEach(i => set.add(i.shipId));
       });
     } else if (fleet.isActive) {
       // If current is Active, ships in ANY Angulum fleet are restricted
-      const angulumFleets = savedFleets.filter(f => f.isAngulum && f.id !== fleet.id);
+      const angulumFleets = accountSavedFleets.filter(f => f.isAngulum && f.id !== fleet.id);
       angulumFleets.forEach(f => {
         const instances = [...f.rows.front, ...f.rows.middle, ...f.rows.back, ...f.rows.reinforcements, ...Object.values(f.carrierLoads).flat()];
         instances.forEach(i => set.add(i.shipId));
@@ -166,7 +190,7 @@ export default function FleetBuilderPage() {
     }
     
     return set;
-  }, [fleet, savedFleets]);
+  }, [fleet, accountSavedFleets]);
 
   function handleAddShip(ship: AllShip) {
     const carriableType = getCarriableType(ship);
@@ -281,7 +305,7 @@ export default function FleetBuilderPage() {
           <FleetToolbar
             fleet={fleet}
             currentCP={currentCP}
-            savedCount={savedFleets.length}
+            savedCount={accountSavedFleets.length}
             validationErrors={validationErrors}
             onUpdateName={(name) => updateFleet({ name })}
             onUpdateMaxCP={(cp) => updateFleet({ maxCommandPoints: cp })}
@@ -293,7 +317,7 @@ export default function FleetBuilderPage() {
 
           {showManager && (
             <FleetManager
-              savedFleets={savedFleets}
+              savedFleets={accountSavedFleets}
               currentFleetId={fleet.id}
               allShips={allShips}
               onLoad={handleLoadFleet}

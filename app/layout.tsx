@@ -21,12 +21,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Prevent dark mode flash — apply theme before React hydrates.
-            Tailwind's `darkMode: "selector"` keys off the html element, so we
-            only write the class there (not body). The runtime toggle in
-            UserMenuButton mirrors that exact target so the two stay in sync. */}
+            Tailwind's `darkMode: "selector"` keys off the `.dark` class on the
+            html element. We also set FlyonUI's `data-theme` to the matching
+            theme: FlyonUI resolves its color tokens (`--b1` etc.) from
+            `data-theme`/`prefers-color-scheme`, so without an explicit value its
+            inputs/buttons would follow the OS instead of our toggle (black
+            inputs in light mode when the OS is dark). The explicit attribute
+            outranks the `prefers-color-scheme` block and keeps the two in sync.
+            AppHeader's toggle mirrors this exact target. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
+            __html: `(function(){try{var d=localStorage.getItem('theme')==='dark';document.documentElement.classList.toggle('dark',d);document.documentElement.setAttribute('data-theme',d?'dark':'light');}catch(e){document.documentElement.setAttribute('data-theme','light');}})();`,
           }}
         />
       </head>

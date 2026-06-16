@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useUserStore } from "@/stores/userStore";
 import UserMenuButton from "./UserMenuButton";
+import AccountMenuButton from "./AccountMenuButton";
 
 interface Props {
   onToggleSidebar: () => void;
@@ -12,6 +13,7 @@ const MODULE_HEADERS: Record<string, { title: string; icon: string }> = {
   "/modules/blueprint-library": { title: "Blueprint Library", icon: "/ui/bpTracker.svg" },
   "/modules/system-library": { title: "System Library", icon: "/ui/moduleLibrary.svg" },
   "/modules/blueprint-tracker": { title: "Blueprint Tracker", icon: "/ui/bpTracker.svg" },
+  "/modules/blueprint-fragments": { title: "Blueprint Fragments", icon: "/ui/bpTracker.svg" },
   "/modules/fleet-builder": { title: "Fleet Builder", icon: "/ui/fleetBuilder.svg" },
   "/modules/mail-editor": { title: "Mail Editor", icon: "/ui/mailEditor.svg" },
 };
@@ -30,8 +32,11 @@ export default function AppHeader({ onToggleSidebar }: Props) {
   function toggleDark() {
     const next = !isDarkMode;
     setIsDarkMode(next);
-    // <html> is the source of truth for tailwind's selector mode.
+    // <html> is the source of truth for tailwind's selector mode. `data-theme`
+    // is kept in lockstep so FlyonUI's component tokens follow our toggle rather
+    // than the OS `prefers-color-scheme` (which otherwise blackens inputs).
     document.documentElement.classList.toggle("dark", next);
+    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
     try { localStorage.setItem("theme", next ? "dark" : "light"); } catch { /* ignore */ }
   }
 
@@ -92,6 +97,7 @@ export default function AppHeader({ onToggleSidebar }: Props) {
               d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" />
           </svg>
         </label>
+        <AccountMenuButton />
         <UserMenuButton />
       </div>
     </nav>

@@ -1,88 +1,63 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import DrawerTab from "./DrawerTab";
+import LockToggle from "./LockToggle";
+import BlueprintsModules from "./BlueprintsModules";
+import FragmentsPanel from "./Fragments/FragmentsPanel";
 import type { BlueprintAllShip, BlueprintSuperCapitalShip, BlueprintUnknownModule, BlueprintWeaponModule, BlueprintPropulsionModule, BlueprintMiscModule } from "@/utils/blueprints";
 
 type BlueprintModule = BlueprintUnknownModule | BlueprintWeaponModule | BlueprintPropulsionModule | BlueprintMiscModule;
+
+interface UserFragment {
+  fragmentId: number;
+  quantityOwned: number;
+}
 
 interface Props {
   ship: BlueprintAllShip;
   layout: "list" | "grid";
   variants: boolean;
-  exposeModules: boolean;
   allVariants: BlueprintAllShip[];
-  tp: number;
-  mirror: boolean;
   owner: boolean | undefined;
-  onTp: (tp: number) => void;
-  onMirror: () => void;
-  onModules: (ship: BlueprintSuperCapitalShip) => void;
-  onFragments: () => void;
   onChange: () => void;
+  // Fragment drawer wiring (account-level inventory lives on the page).
+  fragmentNames: Map<number, string>;
+  userFragments: UserFragment[];
+  onSetOwned: (fragmentId: number, qty: number) => void;
+  onUnlockFragment: () => void;
 }
 
-function formatTp(tp: number) {
-  const version = Number(String(Number(tp) + 100).padStart(5, "0").slice(0, 3));
-  const points = String(tp).padStart(5, "0").slice(3);
-  return `v${version}.${points}`;
-}
-
-export default function BlueprintsCard({ ship, layout, variants, exposeModules, allVariants, tp, mirror, owner, onTp, onMirror, onModules, onFragments, onChange }: Props) {
-  const [techPoints, setTechPoints] = useState(String(tp));
-  const tpInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setTechPoints(String(tp));
-  }, [tp]);
+/**
+ * Blueprint Tracker ship card. Owned state is a top-left lock toggle (no tech
+ * points). Supercapital modules and fragment tracking each expand a drawer
+ * *out to the right of the card* via a 90°-rotated edge tab; both can be open
+ * at once and each card is independent.
+ */
+export default function BlueprintsCard({ ship, layout, variants, allVariants, owner, onChange, fragmentNames, userFragments, onSetOwned, onUnlockFragment }: Props) {
+  const [modOpen, setModOpen] = useState(false);
+  const [fragOpen, setFragOpen] = useState(false);
 
   const showVariant = !ship.hasVariants || (ship.hasVariants && ship.variant === "A");
   const showVariantUnique = ship.hasVariants && ship.variant === "A";
   const isListLayout = layout === "list";
-  const isGolden = ship.techPoints >= ("modules" in ship ? 200 : 100);
   const isSuperCap = "modules" in ship;
+  const isFragment = Boolean(ship.isFragmentUnlocked);
 
   if (!variants && !showVariant) return null;
 
-  function handleTpChange(value: string) {
-    if (!ship.unlocked) return;
-    let cleaned = value;
-    if (cleaned.length > 4) cleaned = cleaned.slice(0, 4);
-    setTechPoints(cleaned);
-    const num = Number(cleaned.replace(".", ""));
-    if (!isNaN(num)) onTp(num);
-  }
-
-  function updateTp() {
-    if (!tpInputRef.current) return;
-    const num = Number(tpInputRef.current.value.replace(".", ""));
-    const clean = isNaN(num) ? 0 : num;
-    setTechPoints(String(clean));
-    onTp(clean);
-  }
-
-  function handleEnter(e: React.KeyboardEvent) {
-    if (e.key !== "Enter") return;
-    tpInputRef.current?.blur();
-    updateTp();
-  }
-
-  function unlock() {
+  function toggleOwned() {
     if (!owner) return;
-    ship.unlocked = true;
-    if (isSuperCap) {
-      (ship as BlueprintSuperCapitalShip).modules.forEach((mod) => {
-        (mod as BlueprintModule).unlocked = Boolean(mod.default);
-      });
+    if (ship.unlocked) {
+      ship.unlocked = false;
+    } else {
+      ship.unlocked = true;
+      if (isSuperCap) {
+        (ship as BlueprintSuperCapitalShip).modules.forEach((mod) => {
+          (mod as BlueprintModule).unlocked = Boolean(mod.default);
+        });
+      }
     }
-    onChange();
-    if (ship.isFragmentUnlocked) {
-      onFragments();
-    }
-  }
-
-  function remove() {
-    if (!owner) return;
-    ship.unlocked = false;
     onChange();
   }
 
@@ -90,11 +65,6 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
     if (!owner) return;
     variant.unlocked = true;
     onChange();
-    if (variant.isFragmentUnlocked) {
-      onFragments(); // this doesn't pass the variant to onFragments though, but in BlueprintsCard we only have onFragments for the current ship.
-      // Wait, if it's a variant, should it open the fragment modal for that variant? Yes. We need to pass variant.
-      // But the prop `onFragments` currently takes no args. Let's change `onFragments` to `onFragments: (ship?: BlueprintAllShip) => void` or we can just assume `unlockVariant` sets `variant.unlocked` and doesn't pop the modal, or it triggers an event. Since we don't have access to `onFragments(variant)` easily, let's change `onFragments` to not take args and assume it's for the main ship of the card. If they click a variant's lock, it unlocks it. We can just skip the auto-pop for variants in this layout, or change the prop. Actually, I'll update the prop.
-    }
   }
 
   function removeVariant(variant: BlueprintAllShip) {
@@ -103,211 +73,96 @@ export default function BlueprintsCard({ ship, layout, variants, exposeModules, 
     onChange();
   }
 
-  // To fix the above issue cleanly, I'll redefine `onFragments` to accept an optional variant argument.
-  // Actually, `onFragments` passed from `BlueprintsCategory` is `onFragments={() => onFragments(ship)}`, so it's bound to `ship`.
-  // For variants, we would need to pass `variant` up. I will ignore auto-pop for variants for simplicity, they can click "View Fragments" after unlocking if they switch to variant layout. Or I can just pass `variant` to `onFragments` if I change the prop signature. Let's just do `onFragments(ship)` for the main ship.
+  const moduleUnlocked = isSuperCap ? (ship as BlueprintSuperCapitalShip).modules.filter((m) => (m as BlueprintModule).unlocked).length : 0;
+  const moduleTotal = isSuperCap ? (ship as BlueprintSuperCapitalShip).modules.length : 0;
 
-  function toggleMod(mod: BlueprintModule, override?: boolean) {
-    if (!owner) return;
-    mod.unlocked = override ?? !mod.unlocked;
-    onChange();
-  }
-
-  const tpNum = Number(techPoints) || 0;
-  const switchStyle = {
-    boxShadow: "var(--handleoffsetcalculator) 0 0 4px var(--bg-color) inset, 0 0 0 4px var(--bg-color) inset, var(--switchhandleborder)",
-  };
+  const ownedFrag = (id: number) => userFragments.find((f) => f.fragmentId === id)?.quantityOwned ?? 0;
+  const fragTotal = ship.fragments?.length ?? 0;
+  const fragDone = (ship.fragments ?? []).filter((r) => ownedFrag(r.fragmentId) >= r.quantityRequired).length;
 
   return (
     <div
-      className={`relative flex items-center justify-center rounded-2xl p-4 transition duration-500 ${
-        isGolden
-          ? `border-yellow-100 bg-yellow-100/75 dark:border-yellow-700 dark:bg-yellow-900${ship.unlocked ? " overflow-hidden hover:bg-yellow-200/75 dark:hover:bg-yellow-800" : ""}`
-          : `border-neutral-300 bg-neutral-100/75 dark:border-neutral-700 dark:bg-neutral-900${ship.unlocked ? " overflow-hidden hover:bg-neutral-200/75 dark:hover:bg-neutral-800" : ""}`
-      } ${
-        !isListLayout
-          ? "w-[90vw] flex-col sm:w-72"
-          : "h-auto w-[90vw] flex-col gap-2 sm:w-72 lg:h-36 lg:w-[35rem] lg:flex-row xl:w-[45rem]"
+      className={`flex w-fit h-56 items-stretch overflow-hidden rounded-2xl text-left transition duration-500 ${
+        ship.unlocked
+          ? "bg-green-50 dark:bg-green-900/40"
+          : "bg-neutral-100/75 dark:bg-neutral-900"
       }`}
     >
-      {!ship.unlocked && (
-        <button
-          className={`overlay group absolute left-1/2 top-1/2 z-[1] h-full w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 ${!owner ? "cursor-auto" : ""}`}
-          type="button"
-          onClick={unlock}
-        >
-          <div className={`message flex w-full items-center justify-center gap-3 transition group-hover:brightness-110 ${!isListLayout ? "flex-col" : "flex-col lg:flex-row"}`}>
-            <p className="font-medium text-white">{owner ? "Click to mark as unlocked" : "Not unlocked"}</p>
-            <img className="size-12 select-none" src="/ui/lock.svg" aria-hidden="true" />
-          </div>
-        </button>
-      )}
+      {/* Card body */}
+      <div className={`relative flex shrink-0 flex-col p-2 ${isListLayout ? "w-[88vw] sm:w-96" : "w-[88vw] sm:w-72"}`}>
 
-      <div className={`flex flex-col items-center justify-center ${isListLayout ? "w-auto lg:w-96" : ""}`}>
-        <h4 className="text-xl font-bold transition duration-500">{ship.name}</h4>
-        {variants ? (
-          <p className="text-sm transition duration-500">
-            {ship.variantName}{ship.hasVariants && <span className="text-sm transition duration-500"> ({ship.variant})</span>}
-          </p>
-        ) : !variants && ship.hasVariants ? (
-          <p className="text-sm transition duration-500">{ship.variant}</p>
-        ) : null}
+        <div className="flex items-center gap-2">
+          <LockToggle unlocked={ship.unlocked} logo={ship.manufacturerLogo} shipName={ship.name} owner={owner} onToggle={toggleOwned} />
+          <h4 className="text-left text-xl font-bold transition duration-500">{ship.name}</h4>
+          {variants ? (
+            <div className="text-sm transition duration-500">
+              {ship.variantName}{ship.hasVariants && <span className="text-sm transition duration-500"> ({ship.variant})</span>}
+            </div>
+          ) : !variants && ship.hasVariants ? (
+            <div className="text-xs transition duration-500">{ship.variant}</div>
+          ) : null}
+        </div>
+
+        <div className="flex grow items-center justify-center">
+          <img
+            className="max-h-32 w-auto object-contain"
+            src={ship.img || `/ships/classes/${ship.type.toLowerCase()}.svg`}
+            alt={ship.variant}
+            loading="lazy"
+            onError={(e) => ((e.target as HTMLImageElement).src = `/ships/classes/${ship.type.toLowerCase()}.svg`)}
+          />
+        </div>
+
+        {!variants && showVariantUnique && (
+          <div className="flex w-full items-center justify-center gap-2">
+            {allVariants.slice(1).map((variant) => (
+              <button
+                key={variant.id}
+                className={`btn relative w-1/4 grow overflow-hidden border-red-300 bg-red-300 text-black transition duration-500 dark:border-red-600 dark:bg-red-600 dark:text-white ${variant.unlocked ? "hover:border-red-500 hover:bg-red-500 dark:hover:border-red-700 dark:hover:bg-red-700" : ""}`}
+                type="button"
+                onClick={() => removeVariant(variant)}
+              >
+                {!variant.unlocked && (
+                  <div
+                    className={`overlay group absolute left-1/2 top-1/2 z-[1] flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-start bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 ${!owner ? "cursor-auto" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); unlockVariant(variant); }}
+                  >
+                    <img className="message size-8 select-none transition group-hover:brightness-110" src="/ui/lock.svg" aria-hidden="true" />
+                  </div>
+                )}
+                {variant.variant}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <img className="my-2 h-20 xl:h-32" src={ship.img} alt={ship.name} loading="lazy" />
-
-      {owner ? (
-        <div className={`flex w-full flex-col gap-2 transition duration-500 ${!ship.unlocked ? "pointer-events-none opacity-50 brightness-50" : ""}`}>
-          <div className="flex w-full items-center justify-center gap-2">
-            <div className="input-group max-w-sm bg-body transition duration-500">
-              <label className="input-group-text" htmlFor={`techPoints${ship.name}${ship.variant}`}>TP</label>
-              <div className="relative grow">
-                <input
-                  id={`techPoints${ship.name}${ship.variant}`}
-                  ref={tpInputRef}
-                  value={techPoints}
-                  onChange={(e) => handleTpChange(e.target.value)}
-                  onBlur={updateTp}
-                  onKeyDown={handleEnter}
-                  type="text"
-                  className="peer input grow border-neutral-300 text-left text-black opacity-0 hover:border-neutral-400 focus:opacity-100 dark:border-neutral-700 dark:text-white dark:hover:border-neutral-600"
-                  placeholder="Tech Points"
-                />
-                <div className="pointer-events-none absolute left-0 top-0 flex h-full w-full items-center justify-center overflow-hidden peer-focus:invisible">
-                  <p className="w-full px-3 text-left text-black transition duration-500 dark:text-white">{formatTp(tpNum)}</p>
-                </div>
-              </div>
-            </div>
-            <button
-              className="btn grow border-red-300 bg-red-300 text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
-              type="button"
-              onClick={remove}
-            >
-              Remove
-            </button>
-          </div>
-
-          {!variants && showVariantUnique && (
-            <div className="flex w-full items-center justify-center gap-2">
-              {allVariants.slice(1).map((variant) => (
-                <button
-                  key={variant.id}
-                  className={`btn relative w-1/4 grow overflow-hidden border-red-300 bg-red-300 text-black transition duration-500 dark:border-red-600 dark:bg-red-600 dark:text-white ${variant.unlocked ? "hover:border-red-500 hover:bg-red-500 dark:hover:border-red-700 dark:hover:bg-red-700" : ""}`}
-                  type="button"
-                  onClick={() => removeVariant(variant)}
-                >
-                  {!variant.unlocked && (
-                    <div
-                      className={`overlay group absolute left-1/2 top-1/2 z-[1] flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-start bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 ${!owner ? "cursor-auto" : ""}`}
-                      onClick={(e) => { e.stopPropagation(); unlockVariant(variant); }}
-                    >
-                      <img className="message size-8 select-none transition group-hover:brightness-110" src="/ui/lock.svg" aria-hidden="true" />
-                    </div>
-                  )}
-                  {variant.variant}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {variants && ship.hasVariants && (
-            <div className="flex items-center gap-2">
-              <input
-                id={ship.name + ship.variant}
-                type="checkbox"
-                className="switch switch-primary switch-outline border-neutral-200 bg-neutral-900 transition duration-500 hover:border-neutral-400 hover:duration-200 dark:border-neutral-700 dark:bg-neutral-100 dark:hover:border-neutral-600"
-                checked={mirror}
-                onChange={onMirror}
-                style={switchStyle}
-              />
-              <label className="text-left transition duration-500" htmlFor={ship.name + ship.variant}>Match TP with variants</label>
-            </div>
-          )}
-          
-          {ship.isFragmentUnlocked && (
-            <button
-              className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-              type="button"
-              onClick={() => onFragments()}
-            >
-              Track Fragments
-            </button>
-          )}
-
+      {/* Edge tabs */}
+      {(isSuperCap || isFragment) && (
+        <div className="flex flex-col">
           {isSuperCap && (
-            exposeModules ? (
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {(ship as BlueprintSuperCapitalShip).modules.map((mod) => (
-                  <div key={mod.system} className="relative w-[45%] grow" onClick={() => toggleMod(mod as BlueprintModule)}>
-                    <button
-                      className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-                      type="button"
-                    >
-                      {mod.system}
-                    </button>
-                    {!(mod as BlueprintModule).unlocked && (
-                      <button
-                        className={`overlay group absolute left-1/2 top-1/2 z-[1] flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-start rounded-lg bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 ${!owner ? "cursor-auto" : ""}`}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); toggleMod(mod as BlueprintModule, true); }}
-                      >
-                        <img className="message size-8 select-none transition group-hover:brightness-110" src="/ui/lock.svg" aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <button
-                className="btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-                type="button"
-                onClick={() => onModules(ship as BlueprintSuperCapitalShip)}
-              >
-                Edit Modules ({(ship as BlueprintSuperCapitalShip).modules.filter((m) => (m as BlueprintModule).unlocked).length}/{(ship as BlueprintSuperCapitalShip).modules.length})
-              </button>
-            )
+            <DrawerTab label={`Modules`} open={modOpen} onToggle={() => setModOpen((v) => !v)} />
+          )}
+          {isFragment && (
+            <DrawerTab label={`Fragments`} open={fragOpen} onToggle={() => setFragOpen((v) => !v)} />
           )}
         </div>
-      ) : (
-        <div className={`flex w-full flex-col gap-2 transition duration-500 ${!ship.unlocked ? "pointer-events-none opacity-50 brightness-50" : ""}`}>
-          <p className="px-3 text-xl font-semibold text-black dark:text-white">{formatTp(tpNum)}</p>
+      )}
 
-          {!variants && showVariantUnique && (
-            <div className="flex w-full items-center justify-center gap-2">
-              {allVariants.slice(1).map((variant) => (
-                <div
-                  key={variant.id}
-                  className="btn relative w-1/4 grow overflow-hidden border-green-300 bg-green-300 text-black transition duration-500 hover:border-green-300 hover:bg-green-300 dark:border-green-600 dark:bg-green-600 dark:text-white dark:hover:border-green-600 dark:hover:bg-green-600"
-                >
-                  {!variant.unlocked && (
-                    <div className="overlay group absolute left-1/2 top-1/2 z-[1] flex h-full w-full -translate-x-1/2 -translate-y-1/2 items-center justify-start bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600 cursor-auto">
-                      <img className="message size-8 select-none transition group-hover:brightness-110" src="/ui/lock.svg" aria-hidden="true" />
-                    </div>
-                  )}
-                  {variant.variant}
-                </div>
-              ))}
-            </div>
+      {/* Drawer panel(s) — to the right of the card */}
+      {(modOpen || fragOpen) && (
+        <div className="flex w-[88vw] transition duration-500 flex-col gap-4 overflow-y-auto border-l border-neutral-300 p-4 sm:w-[30rem] dark:border-neutral-700" style={{ maxHeight: "32rem" }}>
+          {isSuperCap && modOpen && (
+            <BlueprintsModules ship={ship as BlueprintSuperCapitalShip} owner={owner} onChange={onChange} />
           )}
-          
-          {ship.isFragmentUnlocked && (
-            <button
-              className="btn w-full border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-              type="button"
-              onClick={() => onFragments()}
-            >
-              View Fragments
-            </button>
-          )}
-
-          {isSuperCap && (
-            <button
-              className="btn grow border-blue-300 bg-blue-300 text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-              type="button"
-              onClick={() => onModules(ship as BlueprintSuperCapitalShip)}
-            >
-              View Modules ({(ship as BlueprintSuperCapitalShip).modules.filter((m) => (m as BlueprintModule).unlocked).length}/{(ship as BlueprintSuperCapitalShip).modules.length})
-            </button>
+          {isFragment && fragOpen && (
+            <FragmentsPanel
+              ship={ship}
+              fragmentNames={fragmentNames}
+              userFragments={userFragments}
+              onSetOwned={onSetOwned}
+              onUnlock={onUnlockFragment}
+            />
           )}
         </div>
       )}

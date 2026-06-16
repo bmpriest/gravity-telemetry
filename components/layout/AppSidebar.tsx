@@ -19,6 +19,8 @@ type NavItem = {
   src: string;
   route: string;
   tag?: { name: string; color: string };
+  /** Renders as a sub-item, nested under the entry above it. */
+  indent?: boolean;
 };
 
 type NavSection = {
@@ -40,6 +42,7 @@ const sections: NavSection[] = [
     label: "Infinite Workshop",
     items: [
       { displayName: "Blueprint Tracker", src: "/ui/bpTracker.svg", route: "/modules/blueprint-tracker" },
+      { displayName: "BP Fragments", src: "/ui/bpTracker.svg", route: "/modules/blueprint-fragments", indent: true },
       { displayName: "Fleet Builder", src: "/ui/fleetBuilder.svg", route: "/modules/fleet-builder" },
       { displayName: "Mail Editor", src: "/ui/mailEditor.svg", route: "/modules/mail-editor" },
     ],
@@ -51,14 +54,14 @@ function NavLink({ item, active, onClose }: { item: NavItem; active: boolean; on
     <Link
       href={item.route}
       onClick={onClose}
-      className={`group flex items-center rounded-lg p-2 text-neutral-900 transition duration-500 hover:bg-neutral-200/50 hover:duration-150 dark:text-neutral-100 dark:hover:bg-neutral-800 ${active ? "bg-neutral-200/50 dark:bg-neutral-800" : ""}`}
+      className={`group flex items-center rounded-lg p-2 text-neutral-900 transition duration-500 hover:bg-neutral-200/50 hover:duration-150 dark:text-neutral-100 dark:hover:bg-neutral-800 ${active ? "bg-neutral-200/50 dark:bg-neutral-800" : ""} ${item.indent ? "ms-5" : ""}`}
     >
       <img
-        className={`size-6 select-none transition duration-500 hover:duration-300 group-hover:scale-110 dark:invert ${active ? "scale-110" : ""}`}
+        className={`select-none transition duration-500 hover:duration-300 group-hover:scale-110 dark:invert ${item.indent ? "size-5 opacity-80" : "size-6"} ${active ? "scale-110" : ""}`}
         src={item.src}
         alt={`Go to ${item.displayName}`}
       />
-      <span className={`ms-3 flex-1 whitespace-nowrap text-left transition duration-500 ${active ? "font-bold" : ""}`}>{item.displayName}</span>
+      <span className={`ms-3 flex-1 whitespace-nowrap text-left transition duration-500 ${item.indent ? "text-sm" : ""} ${active ? "font-bold" : ""}`}>{item.displayName}</span>
       {item.tag && (
         <span className={`ms-3 inline-flex items-center justify-center rounded-full px-2 text-sm font-medium text-neutral-800 ${item.tag.color}`}>{item.tag.name}</span>
       )}

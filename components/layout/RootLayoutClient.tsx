@@ -13,6 +13,7 @@ import MustChangePasswordGate from "@/components/MustChangePasswordGate";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
 import { useBlueprintStore } from "@/stores/blueprintStore";
+import { useAccountStore } from "@/stores/accountStore";
 import { useMailStore } from "@/stores/mailStore";
 import { changelog } from "@/utils/changelog";
 
@@ -86,6 +87,9 @@ export default function RootLayoutClient({ children }: Props) {
     // swaps either store to the server-backed view once auth is resolved.
     useFleetStore.getState().loadFromStorage();
     useBlueprintStore.getState().loadFromStorage();
+    // Active-account selection is loaded after blueprints so it clamps against
+    // the accounts that were just hydrated.
+    useAccountStore.getState().loadFromStorage();
 
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps

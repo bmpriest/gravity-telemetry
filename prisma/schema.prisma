@@ -518,6 +518,9 @@ model SavedFleet {
   userId           String
   user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   name             String
+  // Which blueprint account (0–9) this fleet belongs to. Defaults to 0 so
+  // pre-account fleets stay valid after the migration.
+  accountIndex     Int                 @default(0)
   maxCommandPoints Int                 @default(400)
   /// JSON string of Record<string, Record<string, number>>
   moduleConfig     String?
@@ -528,6 +531,8 @@ model SavedFleet {
   isAngulum Boolean @default(false)
   isActive  Boolean @default(false)
   order     Int     @default(0)
+
+  @@index([userId, accountIndex])
 }
 
 model FleetShipInstance {

@@ -11,6 +11,8 @@ export type FleetRow = "front" | "middle" | "back" | "reinforcements";
 export interface Fleet {
   id: string;
   name: string;
+  /** Which account (blueprint account index, 0–9) this fleet belongs to. */
+  accountIndex: number;
   maxCommandPoints: number;
   isAngulum: boolean;
   isActive: boolean;
@@ -55,10 +57,11 @@ export function generateInstanceId(): string {
   return `si-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function createEmptyFleet(): Fleet {
+export function createEmptyFleet(accountIndex = 0): Fleet {
   return {
     id: generateFleetId(),
     name: "New Fleet",
+    accountIndex,
     maxCommandPoints: 400,
     isAngulum: false,
     isActive: false,

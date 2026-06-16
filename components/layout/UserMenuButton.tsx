@@ -24,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { useUserStore } from "@/stores/userStore";
 import { useFleetStore } from "@/stores/fleetStore";
 import { useBlueprintStore } from "@/stores/blueprintStore";
+import { useAccountStore } from "@/stores/accountStore";
 import { useMailStore } from "@/stores/mailStore";
 
 export default function UserMenuButton() {
@@ -54,6 +55,7 @@ export default function UserMenuButton() {
     // on while logged in doesn't bleed into a subsequent anonymous session.
     useFleetStore.getState().resetSync();
     useBlueprintStore.getState().resetSync();
+    useAccountStore.getState().reset();
     useMailStore.getState().reset();
     router.replace("/home");
   }

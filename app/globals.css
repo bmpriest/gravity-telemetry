@@ -1,9 +1,12 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@plugin "flyonui" {
-   themes: light --default, dark;
-}
+
+/* FlyonUI is registered (and its themes configured) in tailwind.config.js — this
+   project is on Tailwind v3, where the v4 `@plugin "flyonui" { themes: … }`
+   CSS-first directive is ignored. Theme selection is driven at runtime by the
+   `data-theme` attribute on <html>, kept in sync with the `.dark` class (see
+   app/layout.tsx and AppHeader). */
 
 :root {
   --bg-color: #ffffff;

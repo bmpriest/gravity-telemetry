@@ -3,6 +3,7 @@ import { subscribeWithSelector } from "zustand/middleware";
 import type { AllShip } from "@/utils/ships";
 import type { Fleet, FleetRow, FleetShipInstance, CarrierCapacity } from "@/utils/fleet";
 import { createEmptyFleet, createFleetInstance, getCarrierCapacity, getCarriableType, canHangarHoldAircraft } from "@/utils/fleet";
+import { useAccountStore } from "./accountStore";
 
 const STORAGE_KEY = "fleetBuilderSavedFleets";
 const CURRENT_FLEET_KEY = "fleetBuilderCurrentFleet";
@@ -41,6 +42,8 @@ interface FleetState {
   loadFleet: (fleetId: string) => void;
   deleteFleet: (fleetId: string) => Promise<void>;
   newFleet: () => void;
+  /** Remove a deleted account's fleets and reindex the rest to stay aligned with blueprint accounts. */
+  handleAccountDeleted: (deletedIndex: number) => Promise<void>;
   loadFromStorage: () => void;
 
   syncWithServer: () => Promise<void>;
@@ -273,6 +276,8 @@ export const useFleetStore = create<FleetState>()(
     async saveFleet() {
       const state = get();
       const copy = JSON.parse(JSON.stringify(state.fleet)) as Fleet;
+      // Stamp the owning account so the fleet lands under whatever is active.
+      copy.accountIndex ??= useAccountStore.getState().activeIndex;
 
       if (state.syncedWithServer) {
         const existing = state.savedFleets.findIndex((f) => f.id === state.fleet.id);
@@ -384,7 +389,50 @@ export const useFleetStore = create<FleetState>()(
     },
 
     newFleet() {
-      set({ fleet: createEmptyFleet() });
+      set({ fleet: createEmptyFleet(useAccountStore.getState().activeIndex) });
+    },
+
+    async handleAccountDeleted(deletedIndex) {
+      const state = get();
+      // Mirror blueprintStore's reindex rule: drop the deleted index, shift > D down by 1.
+      const removed = state.savedFleets.filter((f) => f.accountIndex === deletedIndex);
+      const survivors = state.savedFleets
+        .filter((f) => f.accountIndex !== deletedIndex)
+        .map((f) => (f.accountIndex > deletedIndex ? { ...f, accountIndex: f.accountIndex - 1 } : f));
+
+      if (state.syncedWithServer) {
+        try {
+          for (const f of removed) {
+            await fetch(`/api/fleets/${encodeURIComponent(f.id)}`, { method: "DELETE", credentials: "same-origin" });
+          }
+          // Re-persist only the survivors whose index actually shifted.
+          for (const f of survivors) {
+            const before = state.savedFleets.find((x) => x.id === f.id);
+            if (before && before.accountIndex !== f.accountIndex) {
+              await fetch("/api/fleets", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(f),
+                credentials: "same-origin",
+              });
+            }
+          }
+          await get().fetchFromServer();
+        } catch (e) {
+          console.error("Failed to reindex fleets after account deletion", e);
+        }
+      } else {
+        if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(survivors));
+        set({ savedFleets: survivors });
+      }
+
+      // Keep the in-progress fleet pointing at a still-valid account.
+      const current = get().fleet;
+      if (current.accountIndex === deletedIndex) {
+        set({ fleet: createEmptyFleet(deletedIndex) });
+      } else if (current.accountIndex > deletedIndex) {
+        set({ fleet: { ...current, accountIndex: current.accountIndex - 1 } });
+      }
     },
 
     loadFromStorage() {
@@ -400,6 +448,8 @@ export const useFleetStore = create<FleetState>()(
           if (f.isAngulum === undefined) f.isAngulum = false;
           if (f.isActive === undefined) f.isActive = false;
           if (f.order === undefined) f.order = 0;
+          // Pre-account fleets default to the first account.
+          if (f.accountIndex === undefined) f.accountIndex = 0;
           return f;
         };
 

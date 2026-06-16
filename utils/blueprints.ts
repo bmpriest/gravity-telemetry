@@ -10,7 +10,10 @@ import type {
   WeaponModule,
   PropulsionModule,
   MiscModule,
+  AllShip,
+  AllModule,
 } from "@/utils/ships";
+import type { BlueprintAccountDTO, BlueprintShipEntry } from "@/stores/blueprintStore";
 
 export interface BlueprintFighter extends Fighter {
   unlocked: boolean;
@@ -82,3 +85,53 @@ export type BlueprintAllShip =
 
 export type ShipSorter = (shipA: BlueprintAllShip, shipB: BlueprintAllShip) => number;
 export type ShipFilter = (ship: BlueprintAllShip) => boolean;
+
+type AnyBlueprintModule = BlueprintUnknownModule | BlueprintWeaponModule | BlueprintPropulsionModule | BlueprintMiscModule;
+
+/**
+ * Build the editable `BlueprintAllShip[]` view by joining the ship catalogue
+ * with a saved account's unlock state. Shared by the Blueprint Tracker and
+ * Blueprint Fragments pages so both project the same shape from the same DTO.
+ */
+export function buildView(ships: AllShip[], account: BlueprintAccountDTO | undefined): BlueprintAllShip[] {
+  const shipMap = new Map(account?.ships.map((s) => [s.shipId, s]) ?? []);
+  return ships.map((ship): BlueprintAllShip => {
+    const owned = shipMap.get(ship.id);
+    const moduleMap = new Map(owned?.modules.map((m) => [m.moduleId, m.unlocked]) ?? []);
+
+    if ("modules" in ship) {
+      return {
+        ...ship,
+        unlocked: owned?.unlocked ?? false,
+        techPoints: owned?.techPoints ?? 0,
+        mirrorTechPoints: owned?.mirrorTechPoints ?? ship.hasVariants,
+        modules: ship.modules.map((mod: AllModule) => ({
+          ...mod,
+          unlocked: moduleMap.get(mod.id) ?? Boolean(mod.default),
+        })),
+      } as BlueprintSuperCapitalShip;
+    }
+
+    return {
+      ...ship,
+      unlocked: owned?.unlocked ?? false,
+      techPoints: owned?.techPoints ?? 0,
+      mirrorTechPoints: owned?.mirrorTechPoints ?? ship.hasVariants,
+    } as BlueprintAllShip;
+  });
+}
+
+/** Inverse of {@link buildView} — collapses the editable view back to the persistence DTO. */
+export function viewToShipEntries(view: BlueprintAllShip[]): BlueprintShipEntry[] {
+  return view
+    .filter((s) => s.unlocked || s.techPoints > 0 || ("modules" in s && s.modules.some((m) => (m as AnyBlueprintModule).unlocked && !m.default)))
+    .map((s): BlueprintShipEntry => ({
+      shipId: s.id,
+      unlocked: s.unlocked,
+      techPoints: s.techPoints,
+      mirrorTechPoints: s.mirrorTechPoints,
+      modules: "modules" in s
+        ? s.modules.map((m) => ({ moduleId: m.id, unlocked: (m as AnyBlueprintModule).unlocked }))
+        : [],
+    }));
+}
