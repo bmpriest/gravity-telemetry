@@ -8,6 +8,7 @@ import FragmentsPanel from "./Fragments/FragmentsPanel";
 import type { BlueprintAllShip, BlueprintSuperCapitalShip, BlueprintUnknownModule, BlueprintWeaponModule, BlueprintPropulsionModule, BlueprintMiscModule } from "@/utils/blueprints";
 
 type BlueprintModule = BlueprintUnknownModule | BlueprintWeaponModule | BlueprintPropulsionModule | BlueprintMiscModule;
+type ActiveDrawer = "modules" | "fragments" | null;
 
 interface UserFragment {
   fragmentId: number;
@@ -30,13 +31,12 @@ interface Props {
 
 /**
  * Blueprint Tracker ship card. Owned state is a top-left lock toggle (no tech
- * points). Supercapital modules and fragment tracking each expand a drawer
- * *out to the right of the card* via a 90°-rotated edge tab; both can be open
- * at once and each card is independent.
+ * points). Supercapital modules and fragment tracking expand a drawer *out to
+ * the right of the card* via a 90°-rotated edge tab. One drawer is active at a
+ * time and the tab column stays on the outside edge of the expanded content.
  */
 export default function BlueprintsCard({ ship, layout, variants, allVariants, owner, onChange, fragmentNames, userFragments, onSetOwned, onUnlockFragment }: Props) {
-  const [modOpen, setModOpen] = useState(false);
-  const [fragOpen, setFragOpen] = useState(false);
+  const [activeDrawer, setActiveDrawer] = useState<ActiveDrawer>(null);
 
   const showVariant = !ship.hasVariants || (ship.hasVariants && ship.variant === "A");
   const showVariantUnique = ship.hasVariants && ship.variant === "A";
@@ -45,6 +45,10 @@ export default function BlueprintsCard({ ship, layout, variants, allVariants, ow
   const isFragment = Boolean(ship.isFragmentUnlocked);
 
   if (!variants && !showVariant) return null;
+
+  function toggleDrawer(drawer: Exclude<ActiveDrawer, null>) {
+    setActiveDrawer((current) => (current === drawer ? null : drawer));
+  }
 
   function toggleOwned() {
     if (!owner) return;
@@ -79,6 +83,9 @@ export default function BlueprintsCard({ ship, layout, variants, allVariants, ow
   const ownedFrag = (id: number) => userFragments.find((f) => f.fragmentId === id)?.quantityOwned ?? 0;
   const fragTotal = ship.fragments?.length ?? 0;
   const fragDone = (ship.fragments ?? []).filter((r) => ownedFrag(r.fragmentId) >= r.quantityRequired).length;
+  const modOpen = activeDrawer === "modules";
+  const fragOpen = activeDrawer === "fragments";
+  const drawerOpen = modOpen || fragOpen;
 
   return (
     <div
@@ -137,32 +144,42 @@ export default function BlueprintsCard({ ship, layout, variants, allVariants, ow
         )}
       </div>
 
+      {/* Drawer panel(s) — to the right of the card */}
+      {(isSuperCap || isFragment) && (
+        <div
+          className={`min-w-0 shrink-0 overflow-hidden border-l transition-[width,padding,opacity,border-color] duration-300 ease-in-out ${
+            drawerOpen
+              ? "w-[88vw] border-neutral-300 p-4 opacity-100 sm:w-[30rem] dark:border-neutral-700"
+              : "w-0 border-transparent p-0 opacity-0 dark:border-transparent"
+          }`}
+          style={{ maxHeight: "32rem" }}
+          aria-hidden={!drawerOpen}
+        >
+          <div className={`flex h-full flex-col gap-4 overflow-y-auto ${drawerOpen ? "" : "pointer-events-none"}`}>
+            {isSuperCap && modOpen && (
+              <BlueprintsModules ship={ship as BlueprintSuperCapitalShip} owner={owner} onChange={onChange} />
+            )}
+            {isFragment && fragOpen && (
+              <FragmentsPanel
+                ship={ship}
+                fragmentNames={fragmentNames}
+                userFragments={userFragments}
+                onSetOwned={onSetOwned}
+                onUnlock={onUnlockFragment}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Edge tabs */}
       {(isSuperCap || isFragment) && (
         <div className="flex flex-col">
           {isSuperCap && (
-            <DrawerTab label={`Modules`} open={modOpen} onToggle={() => setModOpen((v) => !v)} />
+            <DrawerTab label={`Modules (${moduleUnlocked}/${moduleTotal})`} open={modOpen} onToggle={() => toggleDrawer("modules")} />
           )}
           {isFragment && (
-            <DrawerTab label={`Fragments`} open={fragOpen} onToggle={() => setFragOpen((v) => !v)} />
-          )}
-        </div>
-      )}
-
-      {/* Drawer panel(s) — to the right of the card */}
-      {(modOpen || fragOpen) && (
-        <div className="flex w-[88vw] transition duration-500 flex-col gap-4 overflow-y-auto border-l border-neutral-300 p-4 sm:w-[30rem] dark:border-neutral-700" style={{ maxHeight: "32rem" }}>
-          {isSuperCap && modOpen && (
-            <BlueprintsModules ship={ship as BlueprintSuperCapitalShip} owner={owner} onChange={onChange} />
-          )}
-          {isFragment && fragOpen && (
-            <FragmentsPanel
-              ship={ship}
-              fragmentNames={fragmentNames}
-              userFragments={userFragments}
-              onSetOwned={onSetOwned}
-              onUnlock={onUnlockFragment}
-            />
+            <DrawerTab label={`Fragments (${fragDone}/${fragTotal})`} open={fragOpen} onToggle={() => toggleDrawer("fragments")} />
           )}
         </div>
       )}

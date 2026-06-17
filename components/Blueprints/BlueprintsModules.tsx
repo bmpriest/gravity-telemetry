@@ -21,17 +21,19 @@ export default function BlueprintsModules({ ship, owner, onChange }: Props) {
   const unlockedCount = ship.modules.filter((mod) => (mod as BlueprintModule).unlocked).length;
 
   return (
-    <div className="flex w-full flex-col gap-2">
-      <p className="text-sm text-neutral-500 transition duration-500 dark:text-neutral-400">
+    <div className="flex w-full flex-col gap-3">
+      <p className="text-xs font-medium text-neutral-500 transition duration-500 dark:text-neutral-400">
         {unlockedCount}/{ship.modules.length} modules unlocked
       </p>
       {categories.map((category) => {
         const mods = ship.modules.filter((mod) => mod.system.includes(category));
         if (mods.length === 0) return null;
         return (
-          <div key={category} className="w-full">
-            <h4 className="my-2 text-lg font-bold transition duration-500">{category} Modules</h4>
-            <div className="flex w-full flex-wrap items-stretch justify-start gap-3">
+          <section key={category} className="w-full">
+            <h4 className="mb-1 text-xs font-bold uppercase text-neutral-500 transition duration-500 dark:text-neutral-400">
+              {category} Modules
+            </h4>
+            <div className="grid w-full grid-cols-1 items-stretch gap-1.5 ">
               {mods.map((mod) => (
                 <BlueprintsModuleCard
                   key={mod.system}
@@ -42,7 +44,7 @@ export default function BlueprintsModules({ ship, owner, onChange }: Props) {
                 />
               ))}
             </div>
-          </div>
+          </section>
         );
       })}
     </div>

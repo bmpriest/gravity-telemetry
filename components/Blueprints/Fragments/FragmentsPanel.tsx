@@ -41,20 +41,20 @@ export default function FragmentsPanel({ ship, fragmentNames, userFragments, onS
         {completed}/{required.length} fragments collected
       </span>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="flex flex-col gap-2">
         {required.map((req) => {
           const owned = ownedOf(req.fragmentId);
           const done = owned >= req.quantityRequired;
           return (
             <div
               key={req.fragmentId}
-              className={`flex flex-col items-center gap-1 rounded-xl border p-2 text-center transition duration-500 ${
+              className={`flex flex-row  items-center gap-1 rounded-xl border p-2 text-center transition duration-500 ${
                 done
                   ? "border-green-300 bg-green-50 dark:border-green-700 dark:bg-green-900/40"
                   : "border-neutral-200 bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-800"
               }`}
             >
-              <span className="line-clamp-2 text-sm font-semibold transition duration-500" title={nameOf(req.fragmentId)}>
+              <span className="line-clamp-2 text-sm font-semibold grow transition duration-500" title={nameOf(req.fragmentId)}>
                 {nameOf(req.fragmentId)}
               </span>
               <div className="flex items-center justify-center gap-1">

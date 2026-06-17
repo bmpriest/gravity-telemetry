@@ -13,60 +13,53 @@ interface Props {
 }
 
 export default function BlueprintsModuleCard({ ship, mod, owner, onChange }: Props) {
-  function unlock() {
+  function toggleUnlocked() {
     if (!owner) return;
-    mod.unlocked = true;
+    mod.unlocked = !mod.unlocked;
     onChange();
   }
 
-  function remove() {
-    if (!owner) return;
-    mod.unlocked = false;
-    onChange();
-  }
+  const name = mod.type === "known" ? (mod as BlueprintWeaponModule | BlueprintPropulsionModule | BlueprintMiscModule).name : "Unknown Module";
+  const actionLabel = mod.unlocked ? "Relock" : "Unlock";
 
   return (
     <div
-      className={`relative flex w-full flex-col items-center justify-center rounded-2xl border-neutral-300 bg-neutral-100/75 p-4 transition duration-500 sm:w-56 dark:border-neutral-700 dark:bg-neutral-900 ${
-        mod.unlocked ? "overflow-hidden hover:bg-neutral-200/75 dark:hover:bg-neutral-800" : ""
+      className={`flex min-h-14 w-full items-center gap-2 rounded-lg border px-2 py-1.5 transition duration-300 ${
+        mod.unlocked
+          ? "border-green-200 bg-green-50/80 dark:border-green-800 dark:bg-green-950/30"
+          : "border-neutral-300 bg-neutral-100/75 dark:border-neutral-700 dark:bg-neutral-900"
       }`}
     >
-      {!mod.unlocked && (
+      <Link
+        className={`flex min-w-0 flex-1 items-center gap-2 text-left transition duration-300 hover:brightness-95 dark:hover:brightness-125 ${
+          mod.unlocked ? "" : "opacity-60"
+        }`}
+        href={`/modules/system-library?ship=${ship.id}&sys=${mod.id}`}
+        target="_blank"
+      >
+        <span className="w-10 shrink-0 rounded-md bg-neutral-800 px-1.5 py-1 text-center text-xs font-bold text-white transition duration-500 dark:bg-neutral-200 dark:text-neutral-900">
+          {mod.system}
+        </span>
+        <img className="size-8 shrink-0 object-contain" src={mod.img} alt={mod.system} loading="lazy" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium leading-tight">{name}</span>
+      </Link>
+
+      {!mod.default && (
         <button
-          className={`overlay group absolute left-1/2 top-1/2 z-[1] h-full w-full -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-black/50 transition duration-200 hover:bg-black/60 dark:border dark:border-neutral-600`}
+          className={`btn min-h-8 shrink-0 rounded-md px-2 py-1 text-xs font-semibold transition duration-300 disabled:cursor-auto disabled:opacity-60 ${
+            mod.unlocked
+              ? "border-red-300 bg-red-100 text-red-800 hover:bg-red-200 dark:border-red-700 dark:bg-red-950 dark:text-red-100 dark:hover:bg-red-900"
+              : "border-blue-300 bg-blue-100 text-blue-800 hover:bg-blue-200 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100 dark:hover:bg-blue-900"
+          }`}
           type="button"
-          onClick={unlock}
+          onClick={toggleUnlocked}
+          disabled={!owner}
+          aria-pressed={mod.unlocked}
+          title={owner ? `${actionLabel} ${mod.system}` : `${mod.system} is ${mod.unlocked ? "unlocked" : "locked"}`}
         >
-          <div className="message flex w-full flex-col items-center justify-center gap-3 transition group-hover:brightness-110">
-            <p className="font-medium text-white">{owner ? "Click to mark as unlocked" : "Not unlocked"}</p>
-            <img className="size-12" src="/ui/lock.svg" aria-hidden="true" />
-          </div>
+          {owner ? actionLabel : mod.unlocked ? "Unlocked" : "Locked"}
         </button>
       )}
-
-      <h5 className="text-lg font-medium">{mod.system}</h5>
-      <p className="text-sm">{mod.type === "known" ? (mod as BlueprintWeaponModule | BlueprintPropulsionModule | BlueprintMiscModule).name : "Unknown Module"}</p>
-
-      <img className="my-3 size-16" src={mod.img} alt={mod.system} loading="lazy" />
-
-      <div className={`flex w-full flex-col gap-2 transition duration-500 ${!mod.unlocked ? "pointer-events-none opacity-50 brightness-50" : ""}`}>
-        {owner && (
-          <button
-            className="btn grow border-red-300 bg-red-300 text-sm text-black transition duration-500 hover:border-red-500 hover:bg-red-500 dark:border-red-600 dark:bg-red-600 dark:text-white dark:hover:border-red-700 dark:hover:bg-red-700"
-            type="button"
-            onClick={remove}
-          >
-            Remove
-          </button>
-        )}
-        <Link
-          className="btn grow border-blue-300 bg-blue-300 text-sm text-black transition duration-500 hover:border-blue-400 hover:bg-blue-400 dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-700 dark:hover:bg-blue-700"
-          href={`/modules/system-library?ship=${ship.id}&sys=${mod.id}`}
-          target="_blank"
-        >
-          View in System Library
-        </Link>
-      </div>
     </div>
   );
 }

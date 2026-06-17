@@ -197,9 +197,9 @@ export default function BlueprintTrackerPage() {
           onSave={onSave}
         />
 
-        {lastSavedDisplay && (
+        {/* {lastSavedDisplay && (
           <p className="mb-2 text-sm transition duration-500">Last updated: {lastSavedDisplay}</p>
-        )}
+        )} */}
 
         <div className="flex gap-4">
           {/* Ship-class rail */}

@@ -87,7 +87,7 @@ export default function AppSidebar({ onContributors, onChangelog, onContact, onC
   return (
     <aside
       id="default-sidebar"
-      className="fixed left-0 z-20 h-[calc(100dvh-4rem)] w-72"
+      className="h-full w-72"
       aria-label="Sidebar"
       onClick={(e) => e.stopPropagation()}
     >

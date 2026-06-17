@@ -120,13 +120,6 @@ export default function BlueprintFragmentsPage() {
     setHasUnsavedChanges(true);
   }, []);
 
-  const toggleOwned = useCallback((ship: BlueprintAllShip) => {
-    // Manual flip — does not touch fragment counts in either direction.
-    ship.unlocked = !ship.unlocked;
-    setData((prev) => (prev ? [...prev] : prev));
-    setHasUnsavedChanges(true);
-  }, []);
-
   const onSave = useCallback(async () => {
     if (!draftAccount || !data) return;
     setSaving(true);
@@ -157,7 +150,7 @@ export default function BlueprintFragmentsPage() {
         <p className="text-neutral-600 transition duration-500 dark:text-neutral-400">
           Blueprints unlocked by collecting fragments. Record the fragments you own, then unlock the blueprint once you have enough.
         </p>
-        {lastSaved && <p className="mt-2 text-sm transition duration-500">Last updated: {lastSaved}</p>}
+        {/* {lastSaved && <p className="mt-2 text-sm transition duration-500">Last updated: {lastSaved}</p>} */}
 
         {data ? (
           fragmentShips.length === 0 ? (
@@ -180,11 +173,12 @@ export default function BlueprintFragmentsPage() {
                         <FragmentsCard
                           key={ship.id}
                           ship={ship}
+                          allVariants={fragmentShips.filter((s) => ship.name === s.name)}
                           fragmentNames={fragmentNames}
                           userFragments={userFragments}
                           onSetOwned={setOwned}
                           onUnlock={() => unlock(ship)}
-                          onToggleOwned={() => toggleOwned(ship)}
+                          onChange={() => { setData((prev) => (prev ? [...prev] : prev)); setHasUnsavedChanges(true); }}
                         />
                       ))}
                     </div>

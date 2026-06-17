@@ -142,17 +142,15 @@ export default function RootLayoutClient({ children }: Props) {
       <div className="flex h-full min-h-[calc(100dvh-4rem)] w-full items-start justify-between">
         {/* Sidebar with CSS slide transition */}
         <div
-          className="transition-transform duration-500 ease-in-out"
+          className="fixed left-0 top-16 z-20 h-[calc(100dvh-4rem)] w-72 transition-transform duration-500 ease-in-out"
           style={{ transform: showSidebar ? "translateX(0)" : "translateX(-20rem)" }}
         >
-          {showSidebar && (
-            <AppSidebar
-              onContributors={openContributors}
-              onChangelog={openChangelog}
-              onContact={openContact}
-              onClose={closeSidebarMobile}
-            />
-          )}
+          <AppSidebar
+            onContributors={openContributors}
+            onChangelog={openChangelog}
+            onContact={openContact}
+            onClose={closeSidebarMobile}
+          />
         </div>
 
         {/* Mobile overlay */}
